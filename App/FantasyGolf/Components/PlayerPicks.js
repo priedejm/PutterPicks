@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, Button, ScrollView, Platform, TouchableOpacity } from 'react-native';
 import { getDatabase, ref, get, update } from 'firebase/database';
 import { app } from '../config';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // For accessing stored username
+import { useUser } from '../context/UserContext'; // Import the context
+import LoginScreen from './Login';
 
 const isIos = Platform.OS === 'ios';
 const database = getDatabase(app);
 
 const PlayerPicks = () => {
+  const { isLoggedIn, logout } = useUser(); // Get user data and logout from context
   const [players, setPlayers] = useState([]);
   const [selectedPlayers, setSelectedPlayers] = useState(["", "", "", "", "", ""]); // 6 player picks
   const [currentlySelecting, setCurrentlySelecting] = useState(null); // Index of the input currently being selected
@@ -15,48 +17,16 @@ const PlayerPicks = () => {
   const [username, setUsername] = useState('');
 
   useEffect(() => {
-    // Fetch username from AsyncStorage
-    const fetchUsername = async () => {
-      const storedUsername = await AsyncStorage.getItem('username');
-      setUsername(storedUsername);
-
-      // Fetch the user's picks from Firebase if username is found
-      if (storedUsername) {
-        const userRef = ref(database, 'users');
-        get(userRef).then((snapshot) => {
-          if (snapshot.exists()) {
-            const users = snapshot.val();
-            let userId = '';
-            
-            // Find the user by username
-            Object.keys(users).forEach(id => {
-              if (users[id].username === storedUsername) {
-                userId = id;
-              }
-            });
-            
-            if (userId) {
-              // Get the user's picks from the database
-              const userPicks = users[userId];
-              const updatedSelectedPlayers = [
-                userPicks.pick1 || "",
-                userPicks.pick2 || "",
-                userPicks.pick3 || "",
-                userPicks.pick4 || "",
-                userPicks.pick5 || "",
-                userPicks.pick6 || "",
-              ];
-              setSelectedPlayers(updatedSelectedPlayers); // Set initial player picks
-            }
-          } else {
-            console.log("No users found");
-          }
-        }).catch((error) => {
-          console.error("Error fetching user data: ", error);
-        });
+    const checkUserLoggedIn = async () => {
+      const username = await AsyncStorage.getItem('username');
+      if (username) {
+        setUsername(username);
       }
     };
+    checkUserLoggedIn();
+  }, []);
 
+  useEffect(() => {
     // Fetch players data from Firebase
     const playersRef = ref(database, 'players/players');
     get(playersRef).then((snapshot) => {
@@ -68,8 +38,6 @@ const PlayerPicks = () => {
     }).catch((error) => {
       console.error(error);
     });
-
-    fetchUsername();
   }, []);
 
   const handleSelectPlayer = (index, playerName) => {
@@ -137,69 +105,76 @@ const PlayerPicks = () => {
     player.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  if (!isLoggedIn) {
+    return <LoginScreen />; // Show login screen if not logged in
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <View style={{maxWidth: 500,minWidth:300, alignSelf: 'center'}}>
-      <Text style={styles.title}>Pick Your Players</Text>
-
-      {/* Render 6 input fields */}
-      {selectedPlayers.map((player, index) => (
-        <View key={index} style={styles.inputContainer}>
-          {/* Touchable to detect tap on the TextInput */}
-          <TouchableOpacity
-            style={[styles.input, currentlySelecting === index && styles.selectedInput]}
-            onPress={() => setCurrentlySelecting(index)} // Set the index of the focused input
-          >
-            <Text style={styles.inputText}>
-              {player || (currentlySelecting === index ? 'Selecting...' : 'Pick Player ' + (index + 1))}
-            </Text>
-          </TouchableOpacity>
-
-          {/* Show an "X" button to remove the selected player */}
-          {player && (
-            <TouchableOpacity
-              style={styles.removeButton}
-              onPress={() => handleRemovePlayer(index)}
-            >
-              <Text style={styles.removeButtonText}>X</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      ))}
-
-      {/* Search Bar */}
-      <TextInput
-        style={styles.searchBar}
-        placeholder="Search for a player"
-        value={searchQuery}
-        onChangeText={setSearchQuery} // Update search query as user types
-      />
-
-      {/* Display the player selection list when an input is clicked */}
-      {currentlySelecting !== null && (
-        <ScrollView contentContainerStyle={styles.playerList}>
-          {filteredPlayers.map((player, index) => (
-            <View style={styles.playerCard} key={index}>
-              <Text style={styles.playerName}>{player.name}</Text>
-              <Button
-                title="Select"
-                onPress={() => handleSelectPlayer(currentlySelecting, player.name)} // Fill the selected input
-              />
-            </View>
-          ))}
-        </ScrollView>
-      )}
-
-      {/* Save Button */}
-      <TouchableOpacity
-        style={[styles.saveButton, !isSaveButtonEnabled && styles.saveButtonDisabled]}
-        onPress={handleSavePicks}
-        disabled={!isSaveButtonEnabled}
-      >
-        <Text style={[styles.saveButtonText, !isSaveButtonEnabled && styles.saveButtonTextDisabled]}>
-          Save
-        </Text>
+      <TouchableOpacity onPress={logout} style={{ position: 'absolute', right: 0, top: 10 }}>
+        <Text style={{ paddingRight: 20, color: 'white' }}>Logout</Text>
       </TouchableOpacity>
+      <View style={{ maxWidth: 500, minWidth: 300, alignSelf: 'center', top: 20 }}>
+        <Text style={styles.title}>Pick Your Players</Text>
+
+        {/* Render 6 input fields */}
+        {selectedPlayers.map((player, index) => (
+          <View key={index} style={styles.inputContainer}>
+            {/* Touchable to detect tap on the TextInput */}
+            <TouchableOpacity
+              style={[styles.input, currentlySelecting === index && styles.selectedInput]}
+              onPress={() => setCurrentlySelecting(index)} // Set the index of the focused input
+            >
+              <Text style={styles.inputText}>
+                {player || (currentlySelecting === index ? 'Selecting...' : 'Pick Player ' + (index + 1))}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Show an "X" button to remove the selected player */}
+            {player && (
+              <TouchableOpacity
+                style={styles.removeButton}
+                onPress={() => handleRemovePlayer(index)}
+              >
+                <Text style={styles.removeButtonText}>X</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ))}
+
+        {/* Search Bar */}
+        <TextInput
+          style={styles.searchBar}
+          placeholder="Search for a player"
+          value={searchQuery}
+          onChangeText={setSearchQuery} // Update search query as user types
+        />
+
+        {/* Display the player selection list when an input is clicked */}
+        {currentlySelecting !== null && (
+          <ScrollView contentContainerStyle={styles.playerList}>
+            {filteredPlayers.map((player, index) => (
+              <View style={styles.playerCard} key={index}>
+                <Text style={styles.playerName}>{player.name}</Text>
+                <Button
+                  title="Select"
+                  onPress={() => handleSelectPlayer(currentlySelecting, player.name)} // Fill the selected input
+                />
+              </View>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* Save Button */}
+        <TouchableOpacity
+          style={[styles.saveButton, !isSaveButtonEnabled && styles.saveButtonDisabled]}
+          onPress={handleSavePicks}
+          disabled={!isSaveButtonEnabled}
+        >
+          <Text style={[styles.saveButtonText, !isSaveButtonEnabled && styles.saveButtonTextDisabled]}>
+            Save
+          </Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );

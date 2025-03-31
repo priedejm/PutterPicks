@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity } from 'react-native';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // For local storage
-import { getDatabase, ref, get } from 'firebase/database'; // Firebase imports
-import { app } from '../config'; // Assuming you have Firebase config in this file
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getDatabase, ref, get } from 'firebase/database';
+import { app } from '../config';
+import { useUser } from '../context/UserContext'; // Using the UserContext
 
 const database = getDatabase(app);
 
@@ -11,23 +12,29 @@ const LoginScreen = ({ navigation }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const { isLoggedIn, login } = useUser(); // Access login function from context
 
-  // Handle form submission
+  useEffect(() => {
+    if(navigation === null || navigation === undefined) return
+    if (isLoggedIn) {
+      navigation.navigate('Scoreboard');
+    }
+  }, [isLoggedIn, navigation]);
+
   const handleSubmit = async () => {
     try {
-      const usersRef = ref(database, 'users'); // Reference to users in the database
-      const snapshot = await get(usersRef); // Fetch the users data
+      const usersRef = ref(database, 'users');
+      const snapshot = await get(usersRef);
 
       if (snapshot.exists()) {
-        const users = snapshot.val(); // Get users object
-
-        // Check if any user has the matching username and password
+        const users = snapshot.val();
         let isValidUser = false;
+        
         for (const userId in users) {
           if (users[userId].username === username && users[userId].password === password) {
             isValidUser = true;
-            await AsyncStorage.setItem('username', username); // Store username locally
-            navigation.navigate('Home'); // Navigate to Home screen
+            await AsyncStorage.setItem('username', username);
+            login(username); // Use context login function
             break;
           }
         }
@@ -46,6 +53,7 @@ const LoginScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      <Text style={{color: 'white', fontSize: 40, fontWeight: 'bold', bottom: 50}}>PutterPicks</Text>
       <View style={styles.loginBox}>
         <View style={styles.iconContainer}>
           <FontAwesome5 name="golf-ball" size={50} color='#45751e' />
@@ -82,7 +90,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   loginBox: {
-    width: '80%',
+    width: 300,
     minWidth: 300,
     padding: 20,
     paddingVertical: 40,

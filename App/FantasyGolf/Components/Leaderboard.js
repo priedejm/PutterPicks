@@ -1,15 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Platform } from 'react-native'; // No change needed for web
+import { StyleSheet, Text, View, ScrollView } from 'react-native';
 import { getDatabase, ref, get } from "firebase/database"; 
-import { app } from '../config'; 
+import { app } from '../config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Login from './Login';
 
-const isIos = Platform.OS === 'ios';
 const database = getDatabase(app);
 
 const Leaderboard = () => {
   const [players, setPlayers] = useState([]); 
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
+    const checkUserLoggedIn = async () => {
+      const username = await AsyncStorage.getItem('username');
+      if (username) {
+        setIsLoggedIn(true);
+      }
+    };
+    checkUserLoggedIn();
+
     const playersRef = ref(database, 'players/players');
     get(playersRef).then((snapshot) => {
       if (snapshot.exists()) {
@@ -21,6 +31,10 @@ const Leaderboard = () => {
       console.error(error);
     });
   }, []);
+
+  // if (!isLoggedIn) {
+  //   return <Login />; // Show login screen if not logged in
+  // }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -49,7 +63,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: '#45751e',
     paddingVertical: 10, 
-    height: isIos ? undefined : 1, // This ensures proper scrolling behavior on the web. idk why.
   },
   playerCard: {
     width: 250,
@@ -63,8 +76,8 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     alignItems: 'center',
     alignSelf: 'center',
-    flexDirection: 'row', // Align items horizontally
-    justifyContent: 'space-between', // Distribute items with space between them
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   position: {
     fontSize: 24,
@@ -73,7 +86,7 @@ const styles = StyleSheet.create({
     bottom: 5
   },
   infoContainer: {
-    flex: 3, // Takes the remaining space
+    flex: 3,
     justifyContent: 'center',
     alignItems: 'flex-start',
   },

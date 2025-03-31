@@ -2,13 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, Platform } from 'react-native';
 import { getDatabase, ref, get } from 'firebase/database';
 import { app } from '../config';
+import LoginScreen from './Login';
+import { useUser } from '../context/UserContext';
 
 const isIos = Platform.OS === 'ios';
 const database = getDatabase(app);
 
-const Scoreboard = () => {
+const Scoreboard = ({ navigation }) => {
   const [users, setUsers] = useState([]);
   const [players, setPlayers] = useState([]); 
+  const { isLoggedIn, setIsLoggedIn } = useUser();
 
   useEffect(() => {
     const playersRef = ref(database, 'players/players');
@@ -61,6 +64,10 @@ const Scoreboard = () => {
 
   // Sort users by total score (ascending order)
   const sortedUsers = [...users].sort((a, b) => calculateTotalScore(a) - calculateTotalScore(b));
+
+  if (!isLoggedIn) {
+    return <LoginScreen setIsLoggedIn={setIsLoggedIn}/>; // Show login screen if not logged in
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
