@@ -14,7 +14,6 @@ import json  # Missing import for JSON handling
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, message=".*resource_tracker.*")
 
-
 # Initialize Firebase with the config
 firebase = firebase.FirebaseApplication('https://fantasygolf-22bac-default-rtdb.firebaseio.com', None)
 
@@ -51,7 +50,7 @@ def fetchLeaderboard():
 
         for player_row in soup.find_all('tr', class_='css-1qtrmek'):
             player = {}
-
+            print("player row", player_row)
             try:
                 # Extract Position
                 position_td = player_row.find('td', class_='css-11dj2vk')
@@ -64,6 +63,33 @@ def fetchLeaderboard():
                 # Extract Score
                 score_td = player_row.find_all('td', class_='css-139kpds')[2] if len(player_row.find_all('td', class_='css-139kpds')) > 2 else None
                 player['score'] = score_td.text.strip() if score_td else "N/A"
+
+                # Extract Thru Status
+                thru_td = player_row.find_all('td', class_='css-139kpds')[3] if len(player_row.find_all('td', class_='css-139kpds')) > 3 else None
+                thru_status = thru_td.find('span', class_='chakra-text css-1dmexvw') if thru_td else None
+                player['thru_status'] = thru_status.text.strip() if thru_status else "N/A"
+
+                # Extract Country (using string search and slicing to get country code)
+                # Convert player_row to string
+                player_row_str = str(player_row)
+
+                # Find the starting index of 'prod/flags' in the string
+                start_index = player_row_str.find('prod/flags')
+
+                if start_index != -1:
+                    # Find the first '.svg' after 'prod/flags' to get the ending index
+                    end_index = player_row_str.find('.svg', start_index)
+
+                    if end_index != -1:
+                        # Extract the substring between 'prod/flags' and '.svg' to get the country flag URL
+                        flag_url = player_row_str[start_index:end_index + 4]  # Including '.svg'
+                        country_code = flag_url.split('prod/flags/')[1].split('.svg')[0]  # Extract the country code
+                        print(f"Country Code: {country_code}")
+                        player['country'] = country_code  # Add country to the player dictionary
+                    else:
+                        print("❌ '.svg' not found after 'prod/flags'")
+                else:
+                    print("❌ 'prod/flags' not found in the player row.")
 
                 # Extract Rounds (Refined to make sure we get the right columns)
                 rounds = player_row.find_all('td', class_='css-139kpds')
@@ -82,6 +108,8 @@ def fetchLeaderboard():
                 print(f"Position: {player['position']}")
                 print(f"Name: {player['name']}")
                 print(f"Score: {player['score']}")
+                print(f"Thru Status: {player['thru_status']}")
+                print(f"Country: {player['country']}")
                 print(f"Rounds: {', '.join(player['rounds'])}")
                 print("-" * 50)  # Just a separator for readability
         else:

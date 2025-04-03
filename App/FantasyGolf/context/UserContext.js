@@ -9,6 +9,7 @@ export const useUser = () => {
 
 export const UserProvider = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [refreshScoreboard, setRefreshScoreboard] = useState(false);
 
   useEffect(() => {
     const checkUserLoggedIn = async () => {
@@ -30,8 +31,12 @@ export const UserProvider = ({ children }) => {
     setIsLoggedIn(false);
   };
 
+  const triggerScoreboardRefresh = () => {
+    setRefreshScoreboard(prev => !prev); // Toggle the value to trigger a refresh
+  };
+
   return (
-    <UserContext.Provider value={{ isLoggedIn, login, logout }}>
+    <UserContext.Provider value={{ isLoggedIn, login, logout, refreshScoreboard, triggerScoreboardRefresh }}>
       {children}
     </UserContext.Provider>
   );

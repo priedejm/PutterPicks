@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Platform } from 'react-native';
+import { Platform, LogBox } from 'react-native';
 import { MaterialCommunityIcons } from 'react-native-vector-icons';
+import Home from './Components/Home';
 import Login from './Components/Login';
 import Scoreboard from './Components/Scoreboard';
 import Leaderboard from './Components/Leaderboard';
@@ -16,6 +17,7 @@ const Tab = createBottomTabNavigator();
 function iOSTabNavigator() {
   return (
     <Tab.Navigator
+      initialRouteName='Leaderboard'
       screenOptions={{
         tabBarActiveTintColor: 'tomato',
         tabBarInactiveTintColor: 'gray',
@@ -53,6 +55,15 @@ function iOSTabNavigator() {
 }
 
 export default function App() {
+  useEffect(() => {
+    // Suppress specific warnings from LogBox
+    LogBox.ignoreLogs([
+      'Warning: Text strings must be rendered within a <Text> component',
+    ]);
+    // You can also ignore all log messages (not recommended in production)
+    // LogBox.ignoreAllLogs(true);
+  }, []);
+
   return (
     <UserProvider> {/* Wrapping the app with the UserProvider */}
       <NavigationContainer>
@@ -61,6 +72,7 @@ export default function App() {
         ) : (
           <Stack.Navigator>
             <Stack.Screen name="Login" component={Login} options={{ headerShown: false }} />
+            <Stack.Screen name="Home" component={Home} />
             <Stack.Screen name="Scoreboard" component={Scoreboard} />
             <Stack.Screen name="Leaderboard" component={Leaderboard} />
             <Stack.Screen name="PlayerPicks" component={PlayerPicks} />

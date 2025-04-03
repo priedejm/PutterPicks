@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "FantasyGolf",
-    "slug": "FantasyGolf",
-    "version": "1.0.1",
+    "name": "PutterPicks",
+    "slug": "PutterPicks",
+    "version": "1.0.7",
     "orientation": "portrait",
-    "icon": "./assets/PutterPicksIcon.png",
+    "icon": "./assets/logo.jpg",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/PutterPicksIcon.png",
+      "image": "./assets/logo.jpg",
       "resizeMode": "contain",
       "backgroundColor": "#45751e"
     },
@@ -30,7 +30,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "0217015b-e64b-4ba3-9b7c-a8c07bd4bfed"
+        "projectId": "b96c0a40-50bf-4cde-a9d0-df4d2c4df54f"
       }
     }
   }

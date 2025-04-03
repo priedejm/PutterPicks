@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Platform } from 'react-native';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDatabase, ref, get } from 'firebase/database';
@@ -17,6 +17,7 @@ const LoginScreen = ({ navigation }) => {
   useEffect(() => {
     if(navigation === null || navigation === undefined) return
     if (isLoggedIn) {
+      if(Platform.OS !== 'ios') return navigation.navigate('Home'); 
       navigation.navigate('Scoreboard');
     }
   }, [isLoggedIn, navigation]);
@@ -34,6 +35,7 @@ const LoginScreen = ({ navigation }) => {
           if (users[userId].username === username && users[userId].password === password) {
             isValidUser = true;
             await AsyncStorage.setItem('username', username);
+            console.log("we loggin in")
             login(username); // Use context login function
             break;
           }
@@ -58,6 +60,7 @@ const LoginScreen = ({ navigation }) => {
         <View style={styles.iconContainer}>
           <FontAwesome5 name="golf-ball" size={50} color='#45751e' />
         </View>
+        <Text style={{fontSize: 36,marginBottom: 20}}>Login</Text>
         <TextInput
           style={styles.input}
           placeholder="Username"
@@ -103,7 +106,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconContainer: {
-    marginBottom: 20,
+    marginBottom: 10,
   },
   input: {
     width: '100%',
