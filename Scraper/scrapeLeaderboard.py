@@ -54,7 +54,6 @@ def fetchLeaderboard():
 
         for player_row in soup.find_all('tr', class_='css-1qtrmek'):
             player = {}
-            print("player row", player_row)
             try:
                 # Extract Position
                 position_td = player_row.find('td', class_='css-11dj2vk')
