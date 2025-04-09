@@ -29,12 +29,17 @@ def fetchLeaderboard():
 
     # Set up WebDriver options
     chrome_options = Options()
-    chrome_options.add_argument("--headless")  # Run in headless mode
+    chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--window-size=1920,1080")  # Full HD resolution
     chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--blink-settings=imagesEnabled=false")  # Disable images
-    chrome_options.add_argument("--disable-extensions")  # Disable extensions
+    chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--start-maximized")
+    chrome_options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    chrome_options.add_experimental_option('useAutomationExtension', False)
+
 
     chrome_options.binary_location = "/usr/bin/chromium-browser"  # Point to Chromium
     service = Service("/usr/bin/chromedriver")  
@@ -43,12 +48,18 @@ def fetchLeaderboard():
     # Automatically download and set up Chrome and ChromeDriver using webdriver_manager
     # driver_path = ChromeDriverManager().install()  # This will download ChromeDriver and set the path
     # driver = webdriver.Chrome(service=Service(driver_path), options=chrome_options)
-
+    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+        "source": """
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => undefined
+            })
+        """
+    })
     try:
         print("Opening the leaderboard page...")
         driver.get("https://www.pgatour.com/leaderboard")
         soup = BeautifulSoup(driver.page_source, 'html.parser')
-
+        print("whats this soup like", soup)
         # Extract the player rows using the <tr> tag with the appropriate class
         player_data = []
 
@@ -104,7 +115,7 @@ def fetchLeaderboard():
             except Exception as e:
                 print(f"Error processing player row: {e}")
                 continue  # Skip to the next player if an error occurs
-
+        print("player data", player_data)
         # Check if player_data is populated
         if player_data:
             for player in player_data:
