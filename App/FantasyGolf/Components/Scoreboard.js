@@ -203,46 +203,44 @@ const Scoreboard = ({ navigation }) => {
     return payouts;
   };
   
-  
-  
 
-  const logGolfersLeaderboardAndUsersPicks = () => {
-    const payouts = useMemo(() => calculatePayouts(), [players, tournament]);
-    console.log("are these siething", payouts)
-    // Log golfers' leaderboard and payouts
-    console.log('Golfers Leaderboard and Payouts:');
-    console.log('------------------------------------');
-    payouts.forEach((player, index) => {
-      console.log(`Position: ${player.position}, Name: ${player.name}, Score: ${player.score}, Payout: $${player.payout}`);
-    });
+  // const logGolfersLeaderboardAndUsersPicks = () => {
+  //   const payouts = useMemo(() => calculatePayouts(), [players, tournament]);
+  //   console.log("are these siething", payouts)
+  //   // Log golfers' leaderboard and payouts
+  //   console.log('Golfers Leaderboard and Payouts:');
+  //   console.log('------------------------------------');
+  //   payouts.forEach((player, index) => {
+  //     console.log(`Position: ${player.position}, Name: ${player.name}, Score: ${player.score}, Payout: $${player.payout}`);
+  //   });
   
-    // Log users' picks and their payouts
-    console.log('Users and Their Picks with Payouts:');
-    console.log('------------------------------------');
-    users.forEach((user) => {
-      const picks = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6];
-      const userPayout = picks
-        .map(pick => {
-          const player = payouts.find(p => p.name === pick);
-          return player ? player.payout : '0.00'; // If player is not found, default payout is 0.00
-        })
-        .reduce((sum, payout) => sum + parseFloat(payout), 0); // Calculate total payout for the user
+  //   // Log users' picks and their payouts
+  //   console.log('Users and Their Picks with Payouts:');
+  //   console.log('------------------------------------');
+  //   users.forEach((user) => {
+  //     const picks = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6];
+  //     const userPayout = picks
+  //       .map(pick => {
+  //         const player = payouts.find(p => p.name === pick);
+  //         return player ? player.payout : '0.00'; // If player is not found, default payout is 0.00
+  //       })
+  //       .reduce((sum, payout) => sum + parseFloat(payout), 0); // Calculate total payout for the user
   
-      console.log(`Username: ${user.username}, Total Payout: $${userPayout.toFixed(2)}`);
-      picks.forEach((pick, idx) => {
-        const player = payouts.find(p => p.name === pick); // Find the player object in payouts
+  //     console.log(`Username: ${user.username}, Total Payout: $${userPayout.toFixed(2)}`);
+  //     picks.forEach((pick, idx) => {
+  //       const player = payouts.find(p => p.name === pick); // Find the player object in payouts
       
-        // Check if the player was found
-        const payout = player ? player.payout : '0.00'; // If player exists, use their payout, otherwise use '0.00'
+  //       // Check if the player was found
+  //       const payout = player ? player.payout : '0.00'; // If player exists, use their payout, otherwise use '0.00'
       
-        console.log(`  Pick ${idx + 1}: ${pick} (Payout: $${payout})`);
-      });
+  //       console.log(`  Pick ${idx + 1}: ${pick} (Payout: $${payout})`);
+  //     });
       
-    });
-  };
+  //   });
+  // };
   
-  // Call the function to log golfers' leaderboard and user picks
-  logGolfersLeaderboardAndUsersPicks();
+  // // Call the function to log golfers' leaderboard and user picks
+  // logGolfersLeaderboardAndUsersPicks();
   
   const countPlayerPicks = () => {
     const pickCounts = {};

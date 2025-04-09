@@ -55,57 +55,57 @@ const Leaderboard = () => {
     grabUsername();
   }, []);
 
-  const playerEarnings = {
-    Justin: 8901169,
-    Davis: 8328364,
-    Connor: 7856631,
-    Cameron: 7533373,
-    Griffin: 4153456,  
-    Greg: 7739074,
-    Henry: 5429721,
-    Jack: 4753415,
-    Charlie: 3397731,
-    Wesley: 2574715,
-    Tom: 1845560,
-    Landon: 768488,
-  };
+  // const playerEarnings = {
+  //   Justin: 8901169,
+  //   Davis: 8328364,
+  //   Connor: 7856631,
+  //   Cameron: 7533373,
+  //   Griffin: 4153456,  
+  //   Greg: 7739074,
+  //   Henry: 5429721,
+  //   Jack: 4753415,
+  //   Charlie: 3397731,
+  //   Wesley: 2574715,
+  //   Tom: 1845560,
+  //   Landon: 768488,
+  // };
 
-  useEffect(() => {
-    const updateUsersSeasonWinnings = async () => {
-      // Reference to the users in the database
-      const usersRef = ref(database, 'users');
-      get(usersRef).then((snapshot) => {
-        if (snapshot.exists()) {
-          const users = snapshot.val(); // Get all users
+  // useEffect(() => {
+  //   const updateUsersSeasonWinnings = async () => {
+  //     // Reference to the users in the database
+  //     const usersRef = ref(database, 'users');
+  //     get(usersRef).then((snapshot) => {
+  //       if (snapshot.exists()) {
+  //         const users = snapshot.val(); // Get all users
   
-          // Iterate over each user and update their 'seasonWinnings' field
-          Object.keys(users).forEach((key) => {
-            const user = users[key];
+  //         // Iterate over each user and update their 'seasonWinnings' field
+  //         Object.keys(users).forEach((key) => {
+  //           const user = users[key];
   
-            // Check if the username exists in the playerEarnings map
-            if (playerEarnings[user.username]) {
-              // Update the user with their earnings from the mapping
-              const userRef = ref(database, `users/${key}`); // Correct the database path
-              update(userRef, {
-                seasonWinnings: playerEarnings[user.username], // Use earnings from mapping
-              }).then(() => {
-                console.log(`Updated seasonWinnings for ${user.username}`); // Fixed template literal
-              }).catch((error) => {
-                console.error(`Error updating ${user.username}:`, error); // Fixed template literal
-              });
-            }
-          });
-        } else {
-          console.log("No data available in 'users'");
-        }
-      }).catch((error) => {
-        console.error("Error fetching users:", error);
-      });
-    };
+  //           // Check if the username exists in the playerEarnings map
+  //           if (playerEarnings[user.username]) {
+  //             // Update the user with their earnings from the mapping
+  //             const userRef = ref(database, `users/${key}`); // Correct the database path
+  //             update(userRef, {
+  //               seasonWinnings: playerEarnings[user.username], // Use earnings from mapping
+  //             }).then(() => {
+  //               console.log(`Updated seasonWinnings for ${user.username}`); // Fixed template literal
+  //             }).catch((error) => {
+  //               console.error(`Error updating ${user.username}:`, error); // Fixed template literal
+  //             });
+  //           }
+  //         });
+  //       } else {
+  //         console.log("No data available in 'users'");
+  //       }
+  //     }).catch((error) => {
+  //       console.error("Error fetching users:", error);
+  //     });
+  //   };
   
-    // Call the function to update users' seasonWinnings
-    updateUsersSeasonWinnings();
-  }, []); // Empty dependency array to run only once when the component mounts
+  //   // Call the function to update users' seasonWinnings
+  //   updateUsersSeasonWinnings();
+  // }, []); // Empty dependency array to run only once when the component mounts
   
 
   useEffect(() => {
@@ -206,7 +206,7 @@ const Leaderboard = () => {
     try {
       const snapshot = await get(tournamentRef);
       if (snapshot.exists()) {
-        setTournament(Object.values(snapshot.val())[1]);
+        setTournament(Object.values(snapshot.val())[0]);
       }
     } catch (error) {
       console.error("Error fetching tournament data:", error);
@@ -396,21 +396,20 @@ const Leaderboard = () => {
     return "th";
   };
   
-  const userRank = useMemo(() => {
-    console.log("aboiut to run", users);
+  const getUserRank = () => {
     if (!users) return null;
-  
-    const sortedUsers = [...users].filter(user =>
-      [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(pick => pick)
-    ).sort((a, b) => calculateTotalWinnings(b) - calculateTotalWinnings(a));
-  
-    console.log("sortedUsers", sortedUsers);
-  
+
+    const sortedUsers = [...users]
+      .filter(user =>
+        [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(pick => pick)
+      )
+      .sort((a, b) => calculateTotalWinnings(b) - calculateTotalWinnings(a));
+
     const rank = sortedUsers.findIndex(u => u.username === username) + 1;
     return rank ? `${rank}${getRankSuffix(rank)}` : null;
-  }, [users, username]); // Only recompute when `users` or `username` changes
+  };
   
-
+  const userRank = getUserRank();
   const totalScore = calculateTotalScore(user);
   const totalWinnings = calculateTotalWinnings(user);
   console.log("heller", totalWinnings)
