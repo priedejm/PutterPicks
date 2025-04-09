@@ -172,8 +172,11 @@ const Scoreboard = ({ navigation }) => {
     // Sort positions in ascending order (lowest position number comes first)
     const sortedPositions = Object.keys(positionCounts).map(Number).sort((a, b) => a - b);
   
-    // Format number with commas
-    const formatPayout = (amount) => amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // Format number with commas, rounding to the nearest integer
+    const formatPayout = (amount) => {
+      const roundedAmount = Math.round(amount);  // Round to the nearest integer
+      return roundedAmount.toLocaleString('en-US'); // Format with commas
+    };
   
     const payouts = [];
   
@@ -198,7 +201,7 @@ const Scoreboard = ({ navigation }) => {
           name: player.name,
           position: player.position,
           score: player.score,
-          payout: String(payout) === 'NaN' ? '0.00' : payout, // formatted with commas
+          payout: String(payout) === 'NaN' ? '0' : payout, // formatted with commas, 'NaN' handling
         });
       });
   
@@ -208,20 +211,21 @@ const Scoreboard = ({ navigation }) => {
     return payouts;
   };
   
+  
 
   // const logGolfersLeaderboardAndUsersPicks = () => {
   //   const payouts = useMemo(() => calculatePayouts(), [players, tournament]);
-  //   console.log("are these siething", payouts)
+  //   //console.log("are these siething", payouts)
   //   // Log golfers' leaderboard and payouts
-  //   console.log('Golfers Leaderboard and Payouts:');
-  //   console.log('------------------------------------');
+  //   //console.log('Golfers Leaderboard and Payouts:');
+  //   //console.log('------------------------------------');
   //   payouts.forEach((player, index) => {
-  //     console.log(`Position: ${player.position}, Name: ${player.name}, Score: ${player.score}, Payout: $${player.payout}`);
+  //     //console.log(`Position: ${player.position}, Name: ${player.name}, Score: ${player.score}, Payout: $${player.payout}`);
   //   });
   
   //   // Log users' picks and their payouts
-  //   console.log('Users and Their Picks with Payouts:');
-  //   console.log('------------------------------------');
+  //   //console.log('Users and Their Picks with Payouts:');
+  //   //console.log('------------------------------------');
   //   users.forEach((user) => {
   //     const picks = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6];
   //     const userPayout = picks
@@ -231,14 +235,14 @@ const Scoreboard = ({ navigation }) => {
   //       })
   //       .reduce((sum, payout) => sum + parseFloat(payout), 0); // Calculate total payout for the user
   
-  //     console.log(`Username: ${user.username}, Total Payout: $${userPayout.toFixed(2)}`);
+  //     //console.log(`Username: ${user.username}, Total Payout: $${userPayout.toFixed(2)}`);
   //     picks.forEach((pick, idx) => {
   //       const player = payouts.find(p => p.name === pick); // Find the player object in payouts
       
   //       // Check if the player was found
   //       const payout = player ? player.payout : '0.00'; // If player exists, use their payout, otherwise use '0.00'
       
-  //       console.log(`  Pick ${idx + 1}: ${pick} (Payout: $${payout})`);
+  //       //console.log(`  Pick ${idx + 1}: ${pick} (Payout: $${payout})`);
   //     });
       
   //   });
@@ -290,7 +294,7 @@ const Scoreboard = ({ navigation }) => {
   // Get top 3 picked players
   const top3Players = countPlayerPicks();
 
-  console.log("top 3 is ", top3Players)
+  //console.log("top 3 is ", top3Players)
 
   if (!isLoggedIn) {
     return <LoginScreen />;
@@ -424,7 +428,7 @@ const styles = StyleSheet.create({
     color: '#18453B',
   },
   playerCard: {
-    width: 390, // Widened card
+    width: 375, // Widened card
     padding: 20,
     marginBottom: 20,
     backgroundColor: '#fff',

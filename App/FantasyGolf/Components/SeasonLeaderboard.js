@@ -29,7 +29,7 @@ const SeasonLeaderboard = () => {
         usersData.sort((a, b) => b.seasonWinnings - a.seasonWinnings);
         setUsers(usersData); // Set the sorted users data
       } else {
-        console.log("No data available in 'users'");
+        //console.log("No data available in 'users'");
       }
     }).catch((error) => {
       console.error("Error fetching users:", error);

@@ -47,7 +47,7 @@ const PlayerPicks = () => {
       if (snapshot.exists()) {
         setPlayers(Object.values(snapshot.val()));
       } else {
-        console.log("No data available");
+        //console.log("No data available");
       }
     }).catch((error) => {
       console.error(error);
@@ -248,7 +248,7 @@ const PlayerPicks = () => {
                 }}
               >
                 <Text style={styles.inputText} numberOfLines={1}>
-                  {player || (currentlySelecting === index ? 'Selecting...' : (index < 6 ? 'Pick ' + (index + 1) : 'Alternates'))}
+                  {player || (currentlySelecting === index ? 'Selecting...' : (index < 6 ? 'Pick ' + (index + 1) : index === 6 ? 'Alternate 1' : 'Alternate 2'))}
                 </Text>
               </TouchableOpacity>       
 

@@ -42,7 +42,7 @@ const PlayerCard = ({ index, personalCard, user, calculatePayouts, totalScore, t
         </View>
         <View style={styles.row}>
         {!personalCard &&<Text style={styles.position}>{index + 1}</Text>}
-          <Text style={styles.playerName}>{personalCard ? 'Yo bitchass in ' + userRank : user.username}</Text>
+          <Text style={styles.playerName}>{personalCard ? 'Yo bitchass is ' + userRank : user.username}</Text>
           <Text style={styles.totalScore}>{!secretScoreboard || isLoggedInUser ? `${totalScore === 0 ? 'E' : totalScore > 0 ? '+' + totalScore : totalScore} | ${personalCard ? abbreviateNumber(totalWinnings) : totalWinnings}` : null}</Text>
         </View>
         <View style={styles.picksWrapper}>
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     color: '#18453B',
   },
   playerCard: {
-    width: 390, // Widened card
+    width: 375, // Widened card
     padding: 20,
     marginBottom: 20,
     backgroundColor: '#fff',
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     width: '55%',
   },
   pickPlayerName: {
-    width: '68%',
+    width: '65%',
     fontSize: 16,
     color: '#18453B',
   },
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   pickThru: {
-    width: '12%',
+    width: '15%',
     fontSize: 16,
     color: '#18453B',
     textAlign: 'left',

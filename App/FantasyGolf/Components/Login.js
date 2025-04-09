@@ -35,7 +35,7 @@ const LoginScreen = ({ navigation }) => {
           if (users[userId].username === username && users[userId].password === password) {
             isValidUser = true;
             await AsyncStorage.setItem('username', username);
-            console.log("we loggin in")
+            //console.log("we loggin in")
             login(username); // Use context login function
             break;
           }

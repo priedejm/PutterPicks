@@ -94,14 +94,14 @@ const Leaderboard = () => {
   //             update(userRef, {
   //               seasonWinnings: playerEarnings[user.username], // Use earnings from mapping
   //             }).then(() => {
-  //               console.log(`Updated seasonWinnings for ${user.username}`); // Fixed template literal
+  //               //console.log(`Updated seasonWinnings for ${user.username}`); // Fixed template literal
   //             }).catch((error) => {
   //               console.error(`Error updating ${user.username}:`, error); // Fixed template literal
   //             });
   //           }
   //         });
   //       } else {
-  //         console.log("No data available in 'users'");
+  //         //console.log("No data available in 'users'");
   //       }
   //     }).catch((error) => {
   //       console.error("Error fetching users:", error);
@@ -118,6 +118,50 @@ const Leaderboard = () => {
     fetchPlayers();
     fetchTournament();
   }, [username]);
+
+  // useEffect(() => {
+  //   const resetUserPicks = async () => {
+  //     try {
+  //       const usersRef = ref(database, 'users'); // Reference to the users in the database
+  //       const usersSnapshot = await get(usersRef); // Fetch the users data from Firebase
+  
+  //       if (usersSnapshot.exists()) {
+  //         const users = usersSnapshot.val(); // Get the users data
+  
+  //         // Iterate over each user and reset their pick fields (pick1 - pick6) and alt fields to empty string
+  //         Object.keys(users).forEach((key) => {
+  //           const user = users[key];
+  
+  //           // Update each pick field (pick1 to pick6) and alt fields to an empty string
+  //           const userRef = ref(database, `users/${key}`);
+  //           update(userRef, {
+  //             pick1: "",
+  //             pick2: "",
+  //             pick3: "",
+  //             pick4: "",
+  //             pick5: "",
+  //             pick6: "",
+  //             alt1: "",
+  //             alt2: ""
+  //           }).then(() => {
+  //             console.log(`Reset picks and alt fields for user: ${user.username}`);
+  //           }).catch((error) => {
+  //             console.error(`Error resetting fields for ${user.username}:`, error);
+  //           });
+  //         });
+  //       } else {
+  //         console.log("No users found in the database");
+  //       }
+  //     } catch (error) {
+  //       console.error("Error fetching users:", error);
+  //     }
+  //   };
+  
+  //   // Call the function to reset user picks when this effect runs
+  //   resetUserPicks();
+  // }, []); // Empty dependency array to ensure it runs only once when the component mounts
+  
+  
 
   // useEffect(() => {
   //   if(!players || players?.length === 0 || players === undefined) return;
@@ -140,7 +184,7 @@ const Leaderboard = () => {
   //       // Avoid duplicating entries if already added
   //       if (latestTournament.entries) return;
   //       let payouts = calculatePayouts();
-  //       console.log("gotem", payouts)
+  //       //console.log("gotem", payouts)
 
 
   //       // Map users to entries format
@@ -163,7 +207,7 @@ const Leaderboard = () => {
   //       // Update tournaments in DB
   //       await update(ref(db), { tournaments });
 
-  //       console.log('User picks successfully added to latest tournament');
+  //       //console.log('User picks successfully added to latest tournament');
   //     } catch (error) {
   //       console.error('Error syncing user picks to tournament:', error);
   //     }
@@ -174,14 +218,14 @@ const Leaderboard = () => {
 
 
   const fetchPlayers = async (fromRefresh) => {
-    console.log("fetching");
+    //console.log("fetching");
     const playersRef = ref(database, 'players/players');
     try {
       const usersSnapshot = await get(ref(database, 'users'));
       const snapshot = await get(playersRef);
   
       if (snapshot.exists()) {
-        console.log("new players fetched");
+        //console.log("new players fetched");
         setPlayers(Object.values(snapshot.val())); 
   
         if (usersSnapshot.exists()) {
@@ -197,7 +241,7 @@ const Leaderboard = () => {
         }
         if(fromRefresh) triggerScoreboardRefresh();
       } else {
-        console.log("No data available");
+        //console.log("No data available");
       }
     } catch (error) {
       console.error(error);
@@ -358,8 +402,11 @@ const Leaderboard = () => {
     // Sort positions in ascending order (lowest position number comes first)
     const sortedPositions = Object.keys(positionCounts).map(Number).sort((a, b) => a - b);
   
-    // Format number with commas
-    const formatPayout = (amount) => amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // Format number with commas, rounding to the nearest integer
+    const formatPayout = (amount) => {
+      const roundedAmount = Math.round(amount);  // Round to the nearest integer
+      return roundedAmount.toLocaleString('en-US'); // Format with commas
+    };
   
     const payouts = [];
   
@@ -384,7 +431,7 @@ const Leaderboard = () => {
           name: player.name,
           position: player.position,
           score: player.score,
-          payout: String(payout) === 'NaN' ? '0.00' : payout, // formatted with commas
+          payout: String(payout) === 'NaN' ? '0' : payout, // formatted with commas, 'NaN' handling
         });
       });
   
@@ -393,6 +440,7 @@ const Leaderboard = () => {
   
     return payouts;
   };
+  
   
   const getRankSuffix = (rank) => {
     if (rank === 1) return "st";
@@ -417,7 +465,7 @@ const Leaderboard = () => {
   const userRank = getUserRank();
   const totalScore = calculateTotalScore(user);
   const totalWinnings = calculateTotalWinnings(user);
-  console.log("heller", totalWinnings)
+  //console.log("heller", totalWinnings)
   return (
     <View style={styles.wrapper}>
       <View style={{ flex: 1, backgroundColor: '#18453B', top: 50, overflow: 'visible' }}>
