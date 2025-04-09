@@ -4,13 +4,11 @@
 Meeting Call with chuck and juck. Plus justin 
 
  - cut line underneath tournamentHeader
- - position next to bitch
  - grey out picks when picks are locked
  - import scale. 
- - replace rounds with earnings
  - percent picked in leaderboard player 
+ - graph showing season earnings overtime
 
- - exclude ams
 
  git clone
  cd App

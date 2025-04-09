@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Platform, RefreshControl } from 'react-native';
-import { getDatabase, ref, get } from "firebase/database"; 
+import React, { useEffect, useState, useMemo } from 'react';
+import { StyleSheet, Text, View, ScrollView, Platform, RefreshControl, Image } from 'react-native';
+import { getDatabase, ref, get, update } from "firebase/database"; 
 import { app } from '../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Login from './Login';
@@ -20,6 +20,20 @@ const payoutPercentages = [
   0.257, 0.251, 0.245, 0.241, 0.237, 0.235, 0.233, 0.231, 0.229, 0.227, 0.225, 0.223,
   0.221, 0.219, 0.217, 0.215
 ];
+
+// masters percentages
+// const payoutPercentages = [
+//   18.0, 10.8, 6.8, 4.8, 4.0, 3.6, 3.35, 3.1, 2.9, 2.7, 2.5, 2.3, 2.1,
+//   1.9, 1.8, 1.7, 1.6, 1.5, 1.4, 1.3, 1.2, 1.12, 1.04, 0.96, 0.88,
+//   0.8, 0.77, 0.74, 0.71, 0.68, 0.65, 0.62, 0.59, 0.57, 0.54, 0.52, 0.49,
+//   0.47, 0.45, 0.43, 0.41, 0.39, 0.37, 0.35, 0.33, 0.31, 0.29, 0.274, 0.26,
+//   0.252, 0.246, 0.24, 0.236, 0.232, 0.228, 0.224, 0.22, 0.216, 0.212, 0.208
+// ];
+
+const amateurPlayers = [
+  'Ben James'
+]
+
 const isIos = Platform.OS === 'ios';
 
 const Leaderboard = () => {
@@ -32,72 +46,127 @@ const Leaderboard = () => {
   const [users, setUsers] = useState();
   useEffect(() => {
     const grabUsername = async () => {
+      const usersSnapshot = await get(ref(database, 'users'));
       const storedUsername = await AsyncStorage.getItem('username');
-      if (storedUsername) {
-        setUsername(storedUsername);
-      }
+      if (storedUsername) setUsername(storedUsername);
+      if (usersSnapshot.exists()) setUsers(usersSnapshot.val());
+
     };
     grabUsername();
   }, []);
 
-  // // Create a mapping for the player's earnings
-  // const playerEarnings = {
-  //   Justin: 8336818,
-  //   Davis: 7892738,
-  //   Connor: 7560706,
-  //   Cameron: 7223939,
-  //   Greg: 6978150,
-  //   Henry: 5172531,
-  //   Jack: 4020440,
-  //   Tyler: 3895531,
-  //   Charlie: 3113016,
-  //   Wesley: 2454679,
-  //   tom: 1687429,
-  //   Landon: 768488,
-  // };
+  const playerEarnings = {
+    Justin: 8901169,
+    Davis: 8328364,
+    Connor: 7856631,
+    Cameron: 7533373,
+    Griffin: 4153456,  
+    Greg: 7739074,
+    Henry: 5429721,
+    Jack: 4753415,
+    Charlie: 3397731,
+    Wesley: 2574715,
+    Tom: 1845560,
+    Landon: 768488,
+  };
 
-  // useEffect(() => {
-  //   const updateUsersSeasonWinnings = async () => {
-  //     // Reference to the users in the database
-  //     const usersRef = ref(database, 'users');
-  //     get(usersRef).then((snapshot) => {
-  //       if (snapshot.exists()) {
-  //         const users = snapshot.val(); // Get all users
-
-  //         // Iterate over each user and update their 'seasonWinnings' field
-  //         Object.keys(users).forEach((key) => {
-  //           const user = users[key];
-            
-  //           // Check if the username exists in the playerEarnings map
-  //           if (playerEarnings[user.username]) {
-  //             // Update the user with their earnings from the mapping
-  //             const userRef = ref(database, users/${key});
-  //             update(userRef, {
-  //               seasonWinnings: playerEarnings[user.username], // Use earnings from mapping
-  //             }).then(() => {
-  //               console.log(Updated seasonWinnings for ${user.username});
-  //             }).catch((error) => {
-  //               console.error(Error updating ${user.username}:, error);
-  //             });
-  //           }
-  //         });
-  //       } else {
-  //         console.log("No data available in 'users'");
-  //       }
-  //     }).catch((error) => {
-  //       console.error("Error fetching users:", error);
-  //     });
-  //   };
-
-  //   // Call the function to update users' seasonWinnings
-  //   updateUsersSeasonWinnings();
-  // }, []); // Empty dependency array to run only once when the component mounts
+  useEffect(() => {
+    const updateUsersSeasonWinnings = async () => {
+      // Reference to the users in the database
+      const usersRef = ref(database, 'users');
+      get(usersRef).then((snapshot) => {
+        if (snapshot.exists()) {
+          const users = snapshot.val(); // Get all users
+  
+          // Iterate over each user and update their 'seasonWinnings' field
+          Object.keys(users).forEach((key) => {
+            const user = users[key];
+  
+            // Check if the username exists in the playerEarnings map
+            if (playerEarnings[user.username]) {
+              // Update the user with their earnings from the mapping
+              const userRef = ref(database, `users/${key}`); // Correct the database path
+              update(userRef, {
+                seasonWinnings: playerEarnings[user.username], // Use earnings from mapping
+              }).then(() => {
+                console.log(`Updated seasonWinnings for ${user.username}`); // Fixed template literal
+              }).catch((error) => {
+                console.error(`Error updating ${user.username}:`, error); // Fixed template literal
+              });
+            }
+          });
+        } else {
+          console.log("No data available in 'users'");
+        }
+      }).catch((error) => {
+        console.error("Error fetching users:", error);
+      });
+    };
+  
+    // Call the function to update users' seasonWinnings
+    updateUsersSeasonWinnings();
+  }, []); // Empty dependency array to run only once when the component mounts
+  
 
   useEffect(() => {
     if(!username) return;
     fetchPlayers();
     fetchTournament();
   }, [username]);
+
+  // useEffect(() => {
+  //   if(!players || players?.length === 0 || players === undefined) return;
+  //   const db = getDatabase();
+
+  //   const syncPicks = async () => {
+  //     try {
+  //       const snapshot = await get(ref(db));
+  //       if (!snapshot.exists()) return;
+
+  //       const data = snapshot.val();
+  //       const { tournaments, users } = data;
+
+  //       if (!tournaments || tournaments.length === 0) return;
+
+  //       // Get latest tournament
+  //       const latestTournamentIndex = tournaments.length - 1;
+  //       const latestTournament = tournaments[latestTournamentIndex];
+
+  //       // Avoid duplicating entries if already added
+  //       if (latestTournament.entries) return;
+  //       let payouts = calculatePayouts();
+  //       console.log("gotem", payouts)
+
+
+  //       // Map users to entries format
+  //       const entries = users.map(user => ({
+  //         username: user.username,
+  //         pick1: user.pick1,
+  //         pick2: user.pick2,
+  //         pick3: user.pick3,
+  //         pick4: user.pick4,
+  //         pick5: user.pick5,
+  //         pick6: user.pick6
+  //       }));
+
+  //       // Add entries to the latest tournament
+  //       tournaments[latestTournamentIndex] = {
+  //         ...latestTournament,
+  //         entries
+  //       };
+
+  //       // Update tournaments in DB
+  //       await update(ref(db), { tournaments });
+
+  //       console.log('User picks successfully added to latest tournament');
+  //     } catch (error) {
+  //       console.error('Error syncing user picks to tournament:', error);
+  //     }
+  //   };
+
+  //   syncPicks();
+  // }, [players]);
+
 
   const fetchPlayers = async (fromRefresh) => {
     console.log("fetching");
@@ -137,7 +206,7 @@ const Leaderboard = () => {
     try {
       const snapshot = await get(tournamentRef);
       if (snapshot.exists()) {
-        setTournament(Object.values(snapshot.val())[0]);
+        setTournament(Object.values(snapshot.val())[1]);
       }
     } catch (error) {
       console.error("Error fetching tournament data:", error);
@@ -158,30 +227,39 @@ const Leaderboard = () => {
   };
 
   const renderPlayers = () => {
+    const payouts = calculatePayouts(); // Calculate payouts once
     return players.map((item, index) => {
       let country = getIsoCode(item.country);
-      const displayedRounds = Array.isArray(item?.rounds) ? item.rounds.slice(0, 3) : [];
-
+  
+      // Find the player's payout
+      const payoutEntry = payouts.find(p => p.name === item.name);
+      const abbreviatedPayout = payoutEntry ? abbreviateNumber(parseFloat(payoutEntry.payout.replace(/,/g, ''))) : '-';
+  
       return (
         <View style={styles.row} key={index}>
-          <View style={{ justifyContent: 'center', alignItems: 'center', flex: 0.8,}}>
+          <View style={{ justifyContent: 'center', alignItems: 'center', flex: 0.8 }}>
             <Text style={[styles.cell]}>{item.position || "N/A"}</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 3 }}>
             <CountryFlag isoCode={country} size={15} />
             <Text style={styles.playerCell} numberOfLines={1}>{item.name || "Unknown"}</Text>
           </View>
-          <View style={{ justifyContent: 'center', alignItems: 'center', flex: 0.8, flexDirection: 'row'}}>
+          <View style={{ justifyContent: 'center', alignItems: 'center', flex: 0.8, flexDirection: 'row' }}>
             <Text style={[styles.cell, styles.scoreCell]}>{item.score || "0"}</Text>
           </View>
-          <View style={{ justifyContent: 'center', alignItems: 'center', width: item?.thru_status.includes(":") ? '20%' : '10%', flexDirection: 'row'}}>
+          <View style={{ justifyContent: 'center', alignItems: 'center', width: item?.thru_status.includes(":") ? '20%' : '10%', flexDirection: 'row' }}>
             <Text style={[styles.cell, styles.thruCell]}>{item.thru_status || "N/A"}</Text>
           </View>
-          <Text style={styles.roundsCell}>{displayedRounds.length > 0 ? displayedRounds.join(', ') : "No rounds"}</Text>
+  
+          {/* Replace Rounds with Abbreviated Payout */}
+          <Text style={styles.roundsCell}>
+            {abbreviatedPayout}
+          </Text>
         </View>
       );
     });
   };
+  
 
   const getPlayerPosition = (playerName) => {
     const player = players.find(player => player.name === playerName);
@@ -218,8 +296,18 @@ const Leaderboard = () => {
     return totalScore;
   };
 
-    const calculateTotalWinnings = (user) => {
-      if(!user) return;
+  const abbreviateNumber = (num) => {
+    if (num >= 1_000_000) {
+      return (num / 1_000_000).toFixed(1) + 'mil';  // Millions
+    } else if (num >= 1_000) {
+      return (num / 1_000).toFixed(1) + 'k';      // Thousands
+    } else {
+      return num.toString();                     // Return number as is if less than 1k
+    }
+  };
+
+  const calculateTotalWinnings = (user) => {
+    if(!user) return;
     const picks = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6];
     
     // Helper function to parse payouts
@@ -238,26 +326,19 @@ const Leaderboard = () => {
         return parsePayout(payout);
       })
       .reduce((sum, payout) => sum + payout, 0); // Sum all the payouts
-  
+    
     return totalPayout; // Abbreviate the total payout
   };
-
-  const abbreviateNumber = (num) => {
-    if (num >= 1_000_000) {
-      return (num / 1_000_000).toFixed(1) + 'mil';  // Millions
-    } else if (num >= 1_000) {
-      return (num / 1_000).toFixed(1) + 'k';      // Thousands
-    } else {
-      return num.toString();                     // Return number as is if less than 1k
-    }
-  };
+  
+  // Update the `calculatePayouts` function to exclude amateur players
   
   const calculatePayouts = () => {
     if (!tournament || !tournament.purse) return [];
   
-    // Filter players who are not "CUT", "N/A", or have no valid score
-    const playersPaid = players.filter(player => player.position !== 'CUT' && player.position !== 'N/A' && player.score !== '-');
-    
+    // Filter players who are not amateurs and have a valid position and score
+    const playersPaid = players
+      .filter(player => !amateurPlayers.includes(player.name) && player.position !== 'CUT' && player.position !== 'N/A' && player.score !== '-');
+  
     // Create a position to player mapping, and count how many players are tied at each position
     const positionCounts = {};
     playersPaid.forEach(player => {
@@ -276,12 +357,13 @@ const Leaderboard = () => {
     const formatPayout = (amount) => amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   
     const payouts = [];
-    
+  
     // Iterate over sorted positions and calculate payouts for tied players
+    let adjustedPosition = 1; // To track the adjusted position
     sortedPositions.forEach(position => {
       const { count, players } = positionCounts[position];
-      const payoutPercentageArray = payoutPercentages.slice(position - 1, position - 1 + count);
-    
+      const payoutPercentageArray = payoutPercentages.slice(adjustedPosition - 1, adjustedPosition - 1 + count);
+  
       // Calculate total payout for this position (for all players tied)
       const totalPayout = payoutPercentageArray.reduce((sum, percentage) => {
         return sum + (tournament.purse * percentage) / 100;
@@ -300,10 +382,33 @@ const Leaderboard = () => {
           payout: String(payout) === 'NaN' ? '0.00' : payout, // formatted with commas
         });
       });
+  
+      adjustedPosition += count; // Increment the adjusted position by the count of players in the current tied position
     });
   
     return payouts;
   };
+  
+  const getRankSuffix = (rank) => {
+    if (rank === 1) return "st";
+    if (rank === 2) return "nd";
+    if (rank === 3) return "rd";
+    return "th";
+  };
+  
+  const userRank = useMemo(() => {
+    console.log("aboiut to run", users);
+    if (!users) return null;
+  
+    const sortedUsers = [...users].filter(user =>
+      [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(pick => pick)
+    ).sort((a, b) => calculateTotalWinnings(b) - calculateTotalWinnings(a));
+  
+    console.log("sortedUsers", sortedUsers);
+  
+    const rank = sortedUsers.findIndex(u => u.username === username) + 1;
+    return rank ? `${rank}${getRankSuffix(rank)}` : null;
+  }, [users, username]); // Only recompute when `users` or `username` changes
   
 
   const totalScore = calculateTotalScore(user);
@@ -325,7 +430,11 @@ const Leaderboard = () => {
           {/* Display Tournament Info at the top */}
           {tournament && (
             <View style={styles.tournamentHeader}>
-              <Text style={styles.tournamentName}>{tournament.name}</Text>
+              <Image
+                source={require('../assets/mastersLogo.png')}
+                style={{ width: 175, height: 35, marginBottom: 10 }}
+              />
+              {/* <Text style={styles.tournamentName}>{tournament.name}</Text> */}
               <Text style={styles.tournamentDetails}>
                 Purse: ${tournament.purse.toLocaleString()} | Year: {tournament.year}
               </Text>
@@ -345,6 +454,7 @@ const Leaderboard = () => {
               calculatePayouts={calculatePayouts}
               getPlayerThruStatus={getPlayerThruStatus}
               abbreviateNumber={abbreviateNumber}
+              userRank={userRank}
             />
             </View>}
 
@@ -354,7 +464,7 @@ const Leaderboard = () => {
               <Text style={[styles.headerText, styles.playerHeader]}>Player</Text>
               <Text style={[styles.headerText, styles.scoreHeader]}>Score</Text>
               <Text style={[styles.headerText, styles.thruHeader]}>Thru</Text>
-              <Text style={[styles.headerText, styles.roundsHeader]}>Rounds</Text>
+              <Text style={[styles.headerText, styles.roundsHeader]}>Earnings</Text>
             </View>
 
             {renderPlayers()} {/* Calling the renderPlayers function */}

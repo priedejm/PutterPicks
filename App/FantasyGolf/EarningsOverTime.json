@@ -1,0 +1,30 @@
+{
+  "playerEarningsAfterHoustonOpen": {
+    "Justin": 8336818,
+    "Davis": 7892738,
+    "Connor": 7560706,
+    "Cameron": 7223939,
+    "Greg": 6978150,
+    "Henry": 5172531,
+    "Jack": 4020440,
+    "Tyler": 3895531,
+    "Charlie": 3113016,
+    "Wesley": 2454679,
+    "tom": 1687429,
+    "Landon": 768488
+  },
+  "playerEarningsAfterValero": {
+    "Justin": 8901169,
+    "Davis": 8328364,
+    "Connor": 7856631,
+    "Cameron": 7533373,
+    "Griffin": 4153456,  
+    "Greg": 7739074,
+    "Henry": 5429721,
+    "Jack": 4753415,
+    "Charlie": 3397731,
+    "Wesley": 2574715,
+    "Tom": 1845560,
+    "Landon": 768488
+  }
+}
