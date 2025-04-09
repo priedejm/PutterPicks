@@ -15,27 +15,32 @@ const isIos = Platform.OS === 'ios';
 const database = getDatabase(app);
 
 // PGA Tour payout percentages for each position (from 1 to 65)
-const payoutPercentages = [
-  18.0, 10.9, 6.9, 4.9, 4.1, 3.625, 3.375, 3.125, 2.925, 2.725, 2.525, 2.325, 2.125,
-  1.925, 1.825, 1.725, 1.625, 1.525, 1.425, 1.325, 1.225, 1.125, 1.045, 0.965, 0.885,
-  0.805, 0.775, 0.745, 0.715, 0.685, 0.655, 0.625, 0.595, 0.57, 0.545, 0.52, 0.495,
-  0.475, 0.455, 0.435, 0.415, 0.395, 0.375, 0.355, 0.335, 0.315, 0.295, 0.279, 0.265,
-  0.257, 0.251, 0.245, 0.241, 0.237, 0.235, 0.233, 0.231, 0.229, 0.227, 0.225, 0.223,
-  0.221, 0.219, 0.217, 0.215
-];
+// const payoutPercentages = [
+//   18.0, 10.9, 6.9, 4.9, 4.1, 3.625, 3.375, 3.125, 2.925, 2.725, 2.525, 2.325, 2.125,
+//   1.925, 1.825, 1.725, 1.625, 1.525, 1.425, 1.325, 1.225, 1.125, 1.045, 0.965, 0.885,
+//   0.805, 0.775, 0.745, 0.715, 0.685, 0.655, 0.625, 0.595, 0.57, 0.545, 0.52, 0.495,
+//   0.475, 0.455, 0.435, 0.415, 0.395, 0.375, 0.355, 0.335, 0.315, 0.295, 0.279, 0.265,
+//   0.257, 0.251, 0.245, 0.241, 0.237, 0.235, 0.233, 0.231, 0.229, 0.227, 0.225, 0.223,
+//   0.221, 0.219, 0.217, 0.215
+// ];
 
 const amateurPlayers = [
-  'Ben James'
+  'Ben James',
+  'Hiroshi Tai',
+  'Jose Luis Ballester',
+  'Noah Kent',
+  'Justin Hastings',
+  'Evan Beck'
 ]
 
 // masters percentages
-// const payoutPercentages = [
-//   18.0, 10.8, 6.8, 4.8, 4.0, 3.6, 3.35, 3.1, 2.9, 2.7, 2.5, 2.3, 2.1,
-//   1.9, 1.8, 1.7, 1.6, 1.5, 1.4, 1.3, 1.2, 1.12, 1.04, 0.96, 0.88,
-//   0.8, 0.77, 0.74, 0.71, 0.68, 0.65, 0.62, 0.59, 0.57, 0.54, 0.52, 0.49,
-//   0.47, 0.45, 0.43, 0.41, 0.39, 0.37, 0.35, 0.33, 0.31, 0.29, 0.274, 0.26,
-//   0.252, 0.246, 0.24, 0.236, 0.232, 0.228, 0.224, 0.22, 0.216, 0.212, 0.208
-// ];
+const payoutPercentages = [
+  18.0, 10.8, 6.8, 4.8, 4.0, 3.6, 3.35, 3.1, 2.9, 2.7, 2.5, 2.3, 2.1,
+  1.9, 1.8, 1.7, 1.6, 1.5, 1.4, 1.3, 1.2, 1.12, 1.04, 0.96, 0.88,
+  0.8, 0.77, 0.74, 0.71, 0.68, 0.65, 0.62, 0.59, 0.57, 0.54, 0.52, 0.49,
+  0.47, 0.45, 0.43, 0.41, 0.39, 0.37, 0.35, 0.33, 0.31, 0.29, 0.274, 0.26,
+  0.252, 0.246, 0.24, 0.236, 0.232, 0.228, 0.224, 0.22, 0.216, 0.212, 0.208
+];
 
 
 const Scoreboard = ({ navigation }) => {
@@ -57,7 +62,7 @@ const Scoreboard = ({ navigation }) => {
         if (playersSnapshot.exists()) setPlayers(Object.values(playersSnapshot.val()));
         if (usersSnapshot.exists()) setUsers(usersSnapshot.val());
         if (featureFlagSnapshot.exists()) setSecretScoreboard(featureFlagSnapshot.val());
-        if (tournamentSnapshot.exists()) setTournament(Object.values(tournamentSnapshot.val())[0]);
+        if (tournamentSnapshot.exists()) setTournament(Object.values(tournamentSnapshot.val())[1]);
       } catch (error) {
         console.error("Error fetching data:", error);
       }
