@@ -1,0 +1,19 @@
+
+
+
+Meeting Call with chuck and juck. Plus justin 
+
+ - cut line underneath tournamentHeader
+ - position next to bitch
+ - grey out picks when picks are locked
+ - import scale. 
+ - replace rounds with earnings
+ - percent picked in leaderboard player 
+
+ - exclude ams
+
+ git clone
+ cd App
+ cd FantasyGolf
+ yarn install
+ npm start

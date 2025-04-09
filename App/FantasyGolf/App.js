@@ -19,8 +19,9 @@ function iOSTabNavigator() {
     <Tab.Navigator
       initialRouteName='Leaderboard'
       screenOptions={{
-        tabBarActiveTintColor: 'tomato',
+        tabBarActiveTintColor: '#ed0030',
         tabBarInactiveTintColor: 'gray',
+        headerShown: false,
       }}
     >
       <Tab.Screen

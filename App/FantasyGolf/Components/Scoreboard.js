@@ -23,6 +23,16 @@ const payoutPercentages = [
   0.221, 0.219, 0.217, 0.215
 ];
 
+// masters percentages
+// const payoutPercentages = [
+//   18.0, 10.8, 6.8, 4.8, 4.0, 3.6, 3.35, 3.1, 2.9, 2.7, 2.5, 2.3, 2.1,
+//   1.9, 1.8, 1.7, 1.6, 1.5, 1.4, 1.3, 1.2, 1.12, 1.04, 0.96, 0.88,
+//   0.8, 0.77, 0.74, 0.71, 0.68, 0.65, 0.62, 0.59, 0.57, 0.54, 0.52, 0.49,
+//   0.47, 0.45, 0.43, 0.41, 0.39, 0.37, 0.35, 0.33, 0.31, 0.29, 0.274, 0.26,
+//   0.252, 0.246, 0.24, 0.236, 0.232, 0.228, 0.224, 0.22, 0.216, 0.212, 0.208
+// ];
+
+
 const Scoreboard = ({ navigation }) => {
   const { refreshScoreboard, isLoggedIn } = useUser();
   const [users, setUsers] = useState([]);
@@ -231,6 +241,15 @@ const Scoreboard = ({ navigation }) => {
   };  
   
   
+    // Function to format player name
+    const formatPlayerName = (name) => {
+      console.log("whats this equal", name)
+      if (!name || name === undefined || name === null) return '';
+      const nameParts = name.split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' '); // In case of multiple last names
+      return `${firstName.charAt(0)}. ${lastName}`;
+    };
 
   // Get top 3 picked players
   const top3Players = countPlayerPicks();
@@ -241,39 +260,41 @@ const Scoreboard = ({ navigation }) => {
     return <LoginScreen />;
   }
 
-  const PlayerCard = ({ user, index, totalScore, totalWinnings, isLoggedInUser, secretScoreboard }) => {
+  const PlayerCard = ({ personalCard, user, index, totalScore, totalWinnings, isLoggedInUser, secretScoreboard }) => {
     // Calculate player picks' scores and payouts once
     const picks = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6];
     const playerScores = picks.map((pick) => getPlayerScore(pick));
     const payouts = calculatePayouts();
+    console.log("whast this format", payouts, typeof(payouts))
     const thruStatuses = picks.map((pick) => getPlayerThruStatus(pick));
   
     return (
-      <View style={{ width: '100%', backgroundColor: '#45751e' }}>
+      <View style={{ width: '100%', backgroundColor: '#18453B' }}>
         <View style={styles.playerCard}>
           <View style={styles.headerRow}>
-            <Text style={styles.position}>Pos</Text>
+            {!personalCard && <Text style={styles.position}>Pos</Text>}
             <Text style={styles.playerName}></Text>
             <Text style={styles.totalScore}>Total</Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.position}>{index + 1}</Text>
-            <Text style={styles.playerName}>{user.username}</Text>
-            <Text style={styles.totalScore}>{!secretScoreboard || isLoggedInUser ? `${totalScore === 0 ? 'E' : totalScore > 0 ? '+' + totalScore : totalScore} | ${totalWinnings}` : null}</Text>
+          {!personalCard &&<Text style={styles.position}>{index + 1}</Text>}
+            <Text style={styles.playerName}>{personalCard ? 'This yo team bitch' : user.username}</Text>
+            <Text style={styles.totalScore}>{!secretScoreboard || isLoggedInUser ? `${totalScore === 0 ? 'E' : totalScore > 0 ? '+' + totalScore : totalScore} | ${personalCard ? abbreviateNumber(totalWinnings) : totalWinnings}` : null}</Text>
           </View>
           <View style={styles.picksWrapper}>
             {picks.map((pick, i) => {
               const playerPayout = payouts.find((player) => player.name === pick)?.payout || 0;
               const playerPosition = getPlayerPosition(pick);
               const playerScore = playerScores[i];
-  
+              console.log("the name we are sending", pick)
+              const playerName = formatPlayerName(pick);
               return (
                 <View style={styles.picksRow} key={i + 100}>
                   <Text style={styles.pickLabel}>{playerPosition}:</Text>
                   <Text style={styles.pickValue}>
                     {(!pick && !secretScoreboard && !isLoggedInUser) && 'Pick'}{" "}
                     {(!pick && isLoggedInUser) && 'Pick'}
-                    {secretScoreboard && !isLoggedInUser ? '?' : pick} {"|"} {playerScore > 0 ? '+' + playerScore : playerScore} {"|"} {thruStatuses[i]}
+                    {secretScoreboard && !isLoggedInUser ? '?' : playerName} {"|"} {playerScore > 0 ? '+' + playerScore : playerScore} {"|"} {thruStatuses[i]}
                   </Text>
                   <Text style={styles.pickScore}>
                     {secretScoreboard && !isLoggedInUser ? '?' : '$' + playerPayout}
@@ -308,6 +329,10 @@ const Scoreboard = ({ navigation }) => {
   
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <View style={{flex: 1, top: 50, alignItems: 'center'}}>
+      <View style={{marginBottom: 20}}>
+         <Slider onSelectTournamentScoreboard={() => setActive(true)}  onSelectSeasonalScoreboard={() => setActive(false)} active={active}/>
+      </View>
       {(tournament && active) && (
         <View style={styles.tournamentHeader}>
           <Text style={styles.tournamentName}>{tournament.name}</Text>
@@ -338,6 +363,7 @@ const Scoreboard = ({ navigation }) => {
   
           return <PlayerCard key={index} user={user} index={index} totalScore={totalScore} totalWinnings={totalWinnings} isLoggedInUser={isLoggedInUser} secretScoreboard={secretScoreboard} />;
         })}
+        </View>
     </ScrollView>
   );  
 };
@@ -345,7 +371,7 @@ const Scoreboard = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#45751e',
+    backgroundColor: '#18453B',
     paddingVertical: 10,
     alignItems: 'center',
     height: isIos ? undefined : 1, // Ensures proper scrolling behavior on the web
@@ -364,7 +390,7 @@ const styles = StyleSheet.create({
   scoreboardTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#45751e',
+    color: '#18453B',
     marginBottom: 20,
   },
   playerRow: {
@@ -376,14 +402,13 @@ const styles = StyleSheet.create({
   playerRank: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#45751e',
+    color: '#18453B',
   },
   scrollView: {
     width: '100%',
     padding: 20,
   },
   tournamentHeader: {
-    marginTop: 20,
     backgroundColor: '#fff',
     padding: 10,
     marginHorizontal: 10,
@@ -399,12 +424,11 @@ const styles = StyleSheet.create({
   tournamentName: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#45751e',
+    color: '#18453B',
   },
   tournamentDetails: {
-    fontSize: 18,
-    color: '#45751e',
-    marginTop: 5,
+    fontSize: 16,
+    color: '#18453B',
   },
   playerCard: {
     width: 390, // Widened card
@@ -428,14 +452,14 @@ const styles = StyleSheet.create({
   position: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#45751e',
+    color: '#18453B',
     width: '25%',
     textAlign: 'center',
   },
   playerName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#45751e',
+    color: '#18453B',
     width: '40%',
     textAlign: 'center',
     bottom: 20
@@ -443,7 +467,7 @@ const styles = StyleSheet.create({
   totalScore: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#45751e',
+    color: '#18453B',
     width: '35%',
     textAlign: 'center',
   },
@@ -466,17 +490,17 @@ const styles = StyleSheet.create({
   pickLabel: {
     width: '15%',
     fontSize: 16,
-    color: '#45751e',
+    color: '#18453B',
   },
   pickValue: {
     width: '55%',
     fontSize: 16,
-    color: '#45751e',
+    color: '#18453B',
   },
   pickScore: {
     width: '30%',
     fontSize: 16,
-    color: '#45751e',
+    color: '#18453B',
     textAlign: 'center',
   },
   topPlayersContainer: {  

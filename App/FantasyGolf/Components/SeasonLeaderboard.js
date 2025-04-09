@@ -75,7 +75,7 @@ const SeasonLeaderboard = () => {
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
-    backgroundColor: '#45751e',
+    backgroundColor: '#18453B',
   },
   container: {
     flexGrow: 1,
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    backgroundColor: '#45751e',
+    backgroundColor: '#18453B',
     paddingVertical: 10,
     paddingHorizontal: 0,
     borderRadius: 8,
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   },
   cell: {
     fontSize: 14,
-    color: '#45751e',
+    color: '#18453B',
     textAlign: 'center',
   },
   posCell: {
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   },
   playerCell: {
     fontSize: 14,
-    color: '#45751e',
+    color: '#18453B',
     textAlign: 'left',
     flex: 3.2,
     marginLeft: 5,

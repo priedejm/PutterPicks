@@ -189,122 +189,124 @@ const PlayerPicks = () => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <TouchableOpacity onPress={logout} style={styles.logoutButton}>
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.pastPicksButton}
-        onPress={() => setPastPicksVisible(!pastPicksVisible)}
-      >
-        <Text style={styles.pastPicksButtonText}>Past Picks</Text>
-      </TouchableOpacity>
-
-      <Modal
-        visible={pastPicksVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setPastPicksVisible(false)}
-        style={{ alignItems: 'center' }}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.pastPicksContainer}>
-            <ScrollView>
-              {userPicks
-                .sort((a, b) => b.used - a.used)
-                .map((pick, index) => (
-                  <View key={index} style={styles.pastPickCard}>
-                    <Text style={styles.pastPickPlayer}>{pick.player}</Text>
-                    <Text style={styles.pastPickCount}>Picked {pick.used} times</Text>
-                  </View>
-                ))}
-            </ScrollView>
-          </View>
-
-          <TouchableOpacity
-            style={styles.closeModalButton}
-            onPress={() => setPastPicksVisible(false)}
-          >
-            <Text style={styles.closeModalText}>Close</Text>
-          </TouchableOpacity>
-        </View>
-      </Modal>
-
-      <View style={styles.content}>
-        <Text style={styles.title}>Pick Your Players</Text>
-
-        <View style={styles.inputGrid}>
-        {selectedPlayers.map((player, index) => (
-          <View key={index} style={styles.inputContainer}>
-            <TouchableOpacity
-              style={[styles.input, currentlySelecting === index && styles.selectedInput]}
-              onPress={() => {
-                if (lockedPicks) {
-                  alert('Picks are locked!');
-                } else {
-                  setCurrentlySelecting(index);
-                }
-              }}
-            >
-              <Text style={styles.inputText} numberOfLines={1}>
-                {player || (currentlySelecting === index ? 'Selecting...' : (index < 6 ? 'Pick ' + (index + 1) : 'Alternates'))}
-              </Text>
-            </TouchableOpacity>       
-
-            {player && (
-              <TouchableOpacity
-                style={styles.removeButton}
-                onPress={() => handleRemovePlayer(index)}
-              >
-                <Text style={styles.removeButtonText}>X</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        ))}
-        </View>
-
-        <TextInput
-          style={styles.searchBar}
-          placeholder="Search for a player"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-
-        {currentlySelecting !== null && (
-          <ScrollView contentContainerStyle={styles.playerList}>
-            {filteredPlayers.map((player, index) => {
-              const pickCount = userPicks.find(pick => pick.player === player.name)?.used || 0;
-              const isDisabled = pickCount >= 4; // Disable if player picked 4 times
-
-              return (
-                <View style={styles.playerCard} key={index}>
-                  <Text style={styles.playerName}>{player.name}</Text>
-                  <TouchableOpacity
-                    style={[styles.selectButton, isDisabled && styles.selectButtonDisabled]}
-                    onPress={() => !isDisabled && handleSelectPlayer(currentlySelecting, player.name)}
-                    disabled={isDisabled} // Disable button if player picked 4 times
-                  >
-                    <Text style={styles.selectButtonText}>
-                      Select {pickCount > 0 && `(${pickCount})`}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              );
-            })}
-          </ScrollView>
-        )}
+      <View style={{flex: 1, top: 50, alignItems: 'center'}}>
+        <TouchableOpacity onPress={logout} style={styles.logoutButton}>
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.saveButton, !isSaveButtonEnabled && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={!isSaveButtonEnabled}
+          style={styles.pastPicksButton}
+          onPress={() => setPastPicksVisible(!pastPicksVisible)}
         >
-          <Text
-            style={[styles.saveButtonText, !isSaveButtonEnabled && styles.saveButtonTextDisabled]}
-          >
-            Save
-          </Text>
+          <Text style={styles.pastPicksButtonText}>Past Picks</Text>
         </TouchableOpacity>
+
+        <Modal
+          visible={pastPicksVisible}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setPastPicksVisible(false)}
+          style={{ alignItems: 'center' }}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.pastPicksContainer}>
+              <ScrollView>
+                {userPicks
+                  .sort((a, b) => b.used - a.used)
+                  .map((pick, index) => (
+                    <View key={index} style={styles.pastPickCard}>
+                      <Text style={styles.pastPickPlayer}>{pick.player}</Text>
+                      <Text style={styles.pastPickCount}>Picked {pick.used} times</Text>
+                    </View>
+                  ))}
+              </ScrollView>
+            </View>
+
+            <TouchableOpacity
+              style={styles.closeModalButton}
+              onPress={() => setPastPicksVisible(false)}
+            >
+              <Text style={styles.closeModalText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </Modal>
+
+        <View style={styles.content}>
+          <Text style={styles.title}>Pick Your Players</Text>
+
+          <View style={styles.inputGrid}>
+          {selectedPlayers.map((player, index) => (
+            <View key={index} style={styles.inputContainer}>
+              <TouchableOpacity
+                style={[styles.input, currentlySelecting === index && styles.selectedInput]}
+                onPress={() => {
+                  if (lockedPicks) {
+                    alert('Picks are locked!');
+                  } else {
+                    setCurrentlySelecting(index);
+                  }
+                }}
+              >
+                <Text style={styles.inputText} numberOfLines={1}>
+                  {player || (currentlySelecting === index ? 'Selecting...' : (index < 6 ? 'Pick ' + (index + 1) : 'Alternates'))}
+                </Text>
+              </TouchableOpacity>       
+
+              {player && (
+                <TouchableOpacity
+                  style={styles.removeButton}
+                  onPress={() => handleRemovePlayer(index)}
+                >
+                  <Text style={styles.removeButtonText}>X</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ))}
+          </View>
+
+          <TextInput
+            style={styles.searchBar}
+            placeholder="Search for a player"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+
+          {currentlySelecting !== null && (
+            <ScrollView contentContainerStyle={styles.playerList}>
+              {filteredPlayers.map((player, index) => {
+                const pickCount = userPicks.find(pick => pick.player === player.name)?.used || 0;
+                const isDisabled = pickCount >= 4; // Disable if player picked 4 times
+
+                return (
+                  <View style={styles.playerCard} key={index}>
+                    <Text style={styles.playerName}>{player.name}</Text>
+                    <TouchableOpacity
+                      style={[styles.selectButton, isDisabled && styles.selectButtonDisabled]}
+                      onPress={() => !isDisabled && handleSelectPlayer(currentlySelecting, player.name)}
+                      disabled={isDisabled} // Disable button if player picked 4 times
+                    >
+                      <Text style={styles.selectButtonText}>
+                        Select {pickCount > 0 && `(${pickCount})`}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          )}
+
+          <TouchableOpacity
+            style={[styles.saveButton, !isSaveButtonEnabled && styles.saveButtonDisabled]}
+            onPress={handleSave}
+            disabled={!isSaveButtonEnabled}
+          >
+            <Text
+              style={[styles.saveButtonText, !isSaveButtonEnabled && styles.saveButtonTextDisabled]}
+            >
+              Save
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </ScrollView>
   );
@@ -314,7 +316,7 @@ const PlayerPicks = () => {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#45751e',
+    backgroundColor: '#18453B',
     paddingVertical: 10,
     paddingHorizontal: 20,
     height: isIos ? undefined : 1, // Ensures proper scrolling behavior on the web
@@ -380,7 +382,7 @@ const styles = StyleSheet.create({
     maxWidth: 500,
     minWidth: 300,
     alignSelf: 'center',
-    top: 40,
+    top: 60,
   },
   title: {
     fontSize: 24,
@@ -475,7 +477,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   saveButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#ffdf00',
     paddingVertical: 10,
     borderRadius: 5,
     alignItems: 'center',

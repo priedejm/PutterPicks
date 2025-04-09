@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center', // Center horizontally
-    backgroundColor: '#45751e',
+    backgroundColor: '#18453B',
     paddingTop: 50, // Add padding at the top to avoid title being too close to the top
   },
   title: {
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     width: 225
   },
   buttonText: {
-    color: '#45751e', // Green text
+    color: '#18453B', // Green text
     fontSize: 18,
     fontWeight: 'bold',
   },

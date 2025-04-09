@@ -58,7 +58,7 @@ const LoginScreen = ({ navigation }) => {
       <Text style={{color: 'white', fontSize: 40, fontWeight: 'bold', bottom: 50}}>PutterPicks</Text>
       <View style={styles.loginBox}>
         <View style={styles.iconContainer}>
-          <FontAwesome5 name="golf-ball" size={50} color='#45751e' />
+          <FontAwesome5 name="golf-ball" size={50} color='#18453B' />
         </View>
         <Text style={{fontSize: 36,marginBottom: 20}}>Login</Text>
         <TextInput
@@ -86,7 +86,7 @@ const LoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#45751e',
+    backgroundColor: '#18453B',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
