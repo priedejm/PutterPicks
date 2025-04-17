@@ -41,13 +41,13 @@ def fetchLeaderboard():
     chrome_options.add_experimental_option('useAutomationExtension', False)
 
 
-    chrome_options.binary_location = "/usr/bin/chromium-browser"  # Point to Chromium
-    service = Service("/usr/bin/chromedriver")  
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    # chrome_options.binary_location = "/usr/bin/chromium-browser"  # Point to Chromium
+    # service = Service("/usr/bin/chromedriver")  
+    # driver = webdriver.Chrome(service=service, options=chrome_options)
 
     # Automatically download and set up Chrome and ChromeDriver using webdriver_manager
-    # driver_path = ChromeDriverManager().install()  # This will download ChromeDriver and set the path
-    # driver = webdriver.Chrome(service=Service(driver_path), options=chrome_options)
+    driver_path = ChromeDriverManager().install()  # This will download ChromeDriver and set the path
+    driver = webdriver.Chrome(service=Service(driver_path), options=chrome_options)
     driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
         "source": """
             Object.defineProperty(navigator, 'webdriver', {
@@ -59,7 +59,7 @@ def fetchLeaderboard():
         print("Opening the leaderboard page...")
         driver.get("https://www.pgatour.com/leaderboard")
         soup = BeautifulSoup(driver.page_source, 'html.parser')
-        print("whats this soup like", soup)
+        # print("whats this soup like", soup)
         # Extract the player rows using the <tr> tag with the appropriate class
         player_data = []
 
@@ -71,9 +71,8 @@ def fetchLeaderboard():
                 player['position'] = position_td.text.strip() if position_td else "N/A"
 
                 # Extract Player's Name
-                player_name_span = player_row.find('span', class_='chakra-text css-hmig5c')
+                player_name_span = player_row.find('span', class_='chakra-text css-qvuvio')
                 player['name'] = player_name_span.text.strip() if player_name_span else "N/A"
-
                 # Extract Score
                 score_td = player_row.find_all('td', class_='css-139kpds')[2] if len(player_row.find_all('td', class_='css-139kpds')) > 2 else None
                 player['score'] = score_td.text.strip() if score_td else "N/A"
@@ -82,6 +81,10 @@ def fetchLeaderboard():
                 thru_td = player_row.find_all('td', class_='css-139kpds')[3] if len(player_row.find_all('td', class_='css-139kpds')) > 3 else None
                 thru_status = thru_td.find('span', class_='chakra-text css-1dmexvw') if thru_td else None
                 player['thru_status'] = thru_status.text.strip() if thru_status else "N/A"
+
+                # Extract Round Score
+                round_td = player_row.find_all('td', class_='css-139kpds')[4] if len(player_row.find_all('td', class_='css-139kpds')) > 2 else None
+                player['round'] = round_td.text.strip() if round_td else "N/A"
 
                 # Extract Country (using string search and slicing to get country code)
                 # Convert player_row to string
@@ -106,8 +109,8 @@ def fetchLeaderboard():
                     print("❌ 'prod/flags' not found in the player row.")
 
                 # Extract Rounds (Refined to make sure we get the right columns)
-                rounds = player_row.find_all('td', class_='css-139kpds')
-                player['rounds'] = [round_.text.strip() for round_ in rounds[6:10]] if len(rounds) > 6 else []
+                # rounds = player_row.find_all('td', class_='css-139kpds')
+                # player['rounds'] = [round_.text.strip() for round_ in rounds[6:10]] if len(rounds) > 6 else []
 
                 # Add the player data to the list
                 player_data.append(player)
@@ -123,8 +126,8 @@ def fetchLeaderboard():
                 print(f"Name: {player['name']}")
                 print(f"Score: {player['score']}")
                 print(f"Thru Status: {player['thru_status']}")
+                print(f"Round Score: {player['round']}")
                 print(f"Country: {player['country']}")
-                print(f"Rounds: {', '.join(player['rounds'])}")
                 print("-" * 50)  # Just a separator for readability
         else:
             print("❌ No player data found.")
