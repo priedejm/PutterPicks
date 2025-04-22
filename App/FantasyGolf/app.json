@@ -2,7 +2,7 @@
   "expo": {
     "name": "PutterPicks",
     "slug": "PutterPicks",
-    "version": "3.0.0",
+    "version": "4.0.0",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#18453B"
+      "backgroundColor": "#305115"
     },
     "ios": {
       "supportsTablet": true,
@@ -30,7 +30,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "b96c0a40-50bf-4cde-a9d0-df4d2c4df54f"
+        "projectId": "8775219d-a9c3-43ee-a6ca-b70b8fc42d78"
       }
     }
   }

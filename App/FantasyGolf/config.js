@@ -6,7 +6,7 @@ import { getAnalytics } from "firebase/analytics";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
+const FantasyGolf = {
   apiKey: "AIzaSyB3_8lQ7-uxWaXSd8K6dcBMsuh_4EJ5ZSE",
   authDomain: "fantasygolf-22bac.firebaseapp.com",
   databaseURL: "https://fantasygolf-22bac-default-rtdb.firebaseio.com",
@@ -17,6 +17,17 @@ const firebaseConfig = {
   measurementId: "G-7FR9BCNXN6"
 };
 
+const putterPicks = {
+  apiKey: "AIzaSyDAcXL3niOwlLzOBOLXndRyyb8LUI9wPBY",
+  authDomain: "putterpicks.firebaseapp.com",
+  databaseURL: "https://putterpicks-default-rtdb.firebaseio.com",
+  projectId: "putterpicks",
+  storageBucket: "putterpicks.firebasestorage.app",
+  messagingSenderId: "123363417489",
+  appId: "1:123363417489:web:551fd069bc0a6fbbaace30",
+  measurementId: "G-S55CJWKC0R"
+};
+
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+const app = initializeApp(putterPicks);
 const analytics = getAnalytics(app);

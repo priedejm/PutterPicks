@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { StyleSheet, Text, View, ScrollView, Platform, Image, } from 'react-native';
-import { getDatabase, ref, get } from 'firebase/database';
+import { getDatabase, ref, get, onValue } from 'firebase/database';
 import { app } from '../config';
 import LoginScreen from './Login';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,67 +9,95 @@ import Slider from './Slider';
 import SeasonLeaderboard from './SeasonLeaderboard';
 import { MaterialIcons } from '@expo/vector-icons';  // For the checkmark icon
 import PlayerCard from './PlayerCard';
+import { calculatePayouts } from '../utils/utilFunctions';
 
 
 const isIos = Platform.OS === 'ios';
 const database = getDatabase(app);
 
-// PGA Tour payout percentages for each position (from 1 to 65)
-// const payoutPercentages = [
-//   18.0, 10.9, 6.9, 4.9, 4.1, 3.625, 3.375, 3.125, 2.925, 2.725, 2.525, 2.325, 2.125,
-//   1.925, 1.825, 1.725, 1.625, 1.525, 1.425, 1.325, 1.225, 1.125, 1.045, 0.965, 0.885,
-//   0.805, 0.775, 0.745, 0.715, 0.685, 0.655, 0.625, 0.595, 0.57, 0.545, 0.52, 0.495,
-//   0.475, 0.455, 0.435, 0.415, 0.395, 0.375, 0.355, 0.335, 0.315, 0.295, 0.279, 0.265,
-//   0.257, 0.251, 0.245, 0.241, 0.237, 0.235, 0.233, 0.231, 0.229, 0.227, 0.225, 0.223,
-//   0.221, 0.219, 0.217, 0.215
-// ];
-
-const amateurPlayers = [
-  'Ben James',
-  'Hiroshi Tai',
-  'Jose Luis Ballester',
-  'Noah Kent',
-  'Justin Hastings',
-  'Evan Beck'
-]
-
-// masters percentages
-const payoutPercentages = [
-  18.0, 10.8, 6.8, 4.8, 4.0, 3.6, 3.35, 3.1, 2.9, 2.7, 2.5, 2.3, 2.1,
-  1.9, 1.8, 1.7, 1.6, 1.5, 1.4, 1.3, 1.2, 1.12, 1.04, 0.96, 0.88,
-  0.8, 0.77, 0.74, 0.71, 0.68, 0.65, 0.62, 0.59, 0.57, 0.54, 0.52, 0.49,
-  0.47, 0.45, 0.43, 0.41, 0.39, 0.37, 0.35, 0.33, 0.31, 0.29, 0.274, 0.26,
-  0.252, 0.246, 0.24, 0.236, 0.232, 0.228, 0.224, 0.22, 0.216, 0.212, 0.208
-];
-
-
-const Scoreboard = ({ navigation }) => {
+const Scoreboard = ({ selectedPool }) => {
   const { refreshScoreboard, isLoggedIn } = useUser();
+  const latestTournament = selectedPool.tournaments[selectedPool.tournaments.length - 1];
+
   const [users, setUsers] = useState([]);
   const [players, setPlayers] = useState([]);
   const [secretScoreboard, setSecretScoreboard] = useState(false);
   const [username, setUsername] = useState(null);
   const [active, setActive] = useState(true); 
-  const [tournament, setTournament] = useState(null);
+  const [tournament, setTournament] = useState(latestTournament); // State for storing tournament info
+  const [payoutPercentages, setPayoutPercentages] = useState([]);
+  const [amateurPlayers, setAmateurPlayers] = useState([]);
+  const [specialPayout, setSpecialPayout] = useState();
+  const [cutLine, setCutLine] = useState();
+  const [showProjectedCut, setShowProjectedCut] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const playersSnapshot = await get(ref(database, 'players/players'));
-        const usersSnapshot = await get(ref(database, 'users'));
-        const featureFlagSnapshot = await get(ref(database, 'featureflags/secretScoreboard'));
-        const tournamentSnapshot = await get(ref(database, 'tournaments'));
-        if (playersSnapshot.exists()) setPlayers(Object.values(playersSnapshot.val()));
-        if (usersSnapshot.exists()) setUsers(usersSnapshot.val());
-        if (featureFlagSnapshot.exists()) setSecretScoreboard(featureFlagSnapshot.val());
-        if (tournamentSnapshot.exists()) setTournament(Object.values(tournamentSnapshot.val())[1]);
+        const storedUsername = await AsyncStorage.getItem('username');
+        if (storedUsername && selectedPool?.users) {
+          setUsername(storedUsername);
+          const matchedUser = selectedPool.users.find(user => user.username === storedUsername);
+        }
+        
+        setUsers(selectedPool?.users)
+        const amateurSnapshot = await get(ref(database, 'amateurPlayers'));
+        const payoutSnapshot = await get(ref(database, 'payoutPercentages'));
+        if (amateurSnapshot.exists()) setAmateurPlayers(Object.values(amateurSnapshot.val()));
+        if (payoutSnapshot.exists()) setPayoutPercentages(Object.values(payoutSnapshot.val()));
+
       } catch (error) {
         console.error("Error fetching data:", error);
       }
     };
-  
     fetchData();
   }, [refreshScoreboard]);
+
+  useEffect(() => {
+    if (!username) return;
+    const playersRef = ref(database, 'players/players');
+  
+    const unsubscribePlayers = onValue(playersRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setPlayers(Object.values(snapshot.val()));
+      }
+    });
+
+  
+    return () => {
+      unsubscribePlayers();
+    };
+  }, [username, refreshScoreboard]);
+  
+
+  useEffect(() => {
+    const secretRef = ref(database, 'featureflags/secretScoreboard');
+    const unsubscribe = onValue(secretRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setSecretScoreboard(snapshot.val());
+      }
+    });
+  
+    // Cleanup on unmount
+    return () => unsubscribe(); // unsubscribe is a no-op for onValue, but useful if you use off()
+  }, []);
+
+
+  useEffect(() => {
+    setShowProjectedCut(isProjectedCutLineVisible());
+  }, []);  
+
+  useEffect(() => {
+    const specialPayoutRef = ref(database, 'featureflags/specialPayout');
+    const unsubscribe = onValue(specialPayoutRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setSpecialPayout(snapshot.val());
+      }
+    });
+  
+    // Cleanup on unmount
+    return () => unsubscribe(); // for consistency, even if onValue doesn’t need it
+  }, []);
 
   useEffect(() => {
     const grabUsername = async () => {
@@ -81,10 +109,23 @@ const Scoreboard = ({ navigation }) => {
     grabUsername();
   }, []);
 
+  useEffect(() => {
+    if(players?.length < 1 || payoutPercentages?.length < 1) return;
+    //console.log("array length", payoutPercentages?.length)
+    //console.log("this is the 50th player", players[payoutPercentages?.length-1])
+    setCutLine(players[payoutPercentages?.length-1]?.score)
+  }, [players, payoutPercentages])
+
 
   const getPlayerPosition = (playerName) => {
     const player = players.find(player => player.name === playerName);
     return player ? player.position : "N/A";
+  };
+
+  const getPlayerRoundScore = (playerName) => {
+    const player = players.find(player => player.name === playerName);
+    const roundScore = player?.round;
+    return roundScore != null && roundScore !== '' ? roundScore : 'E';
   };
 
   const getPlayerThruStatus = (playerName) => {
@@ -108,13 +149,17 @@ const Scoreboard = ({ navigation }) => {
     return "N/A";
   };
 
-  const calculateTotalScore = (user) => {
+  const calculateTotalScore = useCallback((user) => {
     const totalScore = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6]
-      .map(pick => pick ? getPlayerScore(pick, true) : 0)
+      .map(pick => {
+        const score = pick ? getPlayerScore(pick, true) : 0;
+        return typeof score === 'number' ? score : 0; // Handle 'N/A' or invalid values
+      })
       .reduce((total, score) => total + score, 0);
+  
     return totalScore;
-  };
-
+  }, [players]);
+  
 
   const abbreviateNumber = (num) => {
     if (num >= 1_000_000) {
@@ -126,130 +171,72 @@ const Scoreboard = ({ navigation }) => {
     }
   };
 
+  // Helper function to parse payouts
+  const parsePayout = (payout) => {
+    if (typeof payout === 'string') {
+      return parseFloat(payout.replace(/,/g, '')); // Remove commas and parse as float
+    }
+    return payout; // If already a number, return it
+  };
+
+  function calculatePayoutsWrapper() {
+    return calculatePayouts(tournament,players,amateurPlayers,payoutPercentages,specialPayout);
+  }
+    
+
   const calculateTotalWinnings = (user) => {
     const picks = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6];
-    
-    // Helper function to parse payouts
-    const parsePayout = (payout) => {
-      if (typeof payout === 'string') {
-        return parseFloat(payout.replace(/,/g, '')); // Remove commas and parse as float
-      }
-      return payout; // If already a number, return it
-    };
   
     // Calculate the total payout by summing up the payouts for each pick
     const totalPayout = picks
       .map(pick => {
-        const player = calculatePayouts().find(player => pick === player.name);
+        const player = calculatePayoutsWrapper().find(player => pick === player.name);
         const payout = player ? player.payout : 0;
         return parsePayout(payout);
       })
       .reduce((sum, payout) => sum + payout, 0); // Sum all the payouts
     
-    return totalPayout; // Abbreviate the total payout
+    return totalPayout === 'N/A' ? 0 : totalPayout; ; // Abbreviate the total payout
   };
   
-  // Update the `calculatePayouts` function to exclude amateur players
-  
-  const calculatePayouts = () => {
-    if (!tournament || !tournament.purse) return [];
-  
-    // Filter players who are not amateurs and have a valid position and score
-    const playersPaid = players
-      .filter(player => !amateurPlayers.includes(player.name) && player.position !== 'CUT' && player.position !== 'N/A' && player.score !== '-');
-  
-    // Create a position to player mapping, and count how many players are tied at each position
-    const positionCounts = {};
-    playersPaid.forEach(player => {
-      let position = player.position.startsWith('T') ? parseInt(player.position.slice(1), 10) : parseInt(player.position, 10);
-      if (!positionCounts[position]) {
-        positionCounts[position] = { count: 0, players: [] };
-      }
-      positionCounts[position].count += 1;
-      positionCounts[position].players.push(player);
+  const logGolfersLeaderboardAndUsersPicks = () => {
+    const payouts = useMemo(() => calculatePayoutsWrapper(), [players, tournament]);
+    console.log("are these siething", payouts)
+    // Log golfers' leaderboard and payouts
+    console.log('Golfers Leaderboard and Payouts:');
+    console.log('------------------------------------');
+    payouts.forEach((player, index) => {
+      console.log(`Position: ${player.position}, Name: ${player.name}, Score: ${player.score}, Thru: ${player.thru_status}, Payout: $${player.payout}`);
     });
   
-    // Sort positions in ascending order (lowest position number comes first)
-    const sortedPositions = Object.keys(positionCounts).map(Number).sort((a, b) => a - b);
+    // Log users' picks and their payouts
+    console.log('Users and Their Picks with Payouts:');
+    console.log('------------------------------------');
+    users.forEach((user) => {
+      const picks = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6];
+      const totalPayout = picks
+      .map(pick => {
+        const player = calculatePayoutsWrapper().find(player => pick === player.name);
+        const payout = player ? player.payout : 0;
+        return parsePayout(payout);
+      })
+      .reduce((sum, payout) => sum + payout, 0); // Sum all the payouts
   
-    // Format number with commas, rounding to the nearest integer
-    const formatPayout = (amount) => {
-      const roundedAmount = Math.round(amount);  // Round to the nearest integer
-      return roundedAmount.toLocaleString('en-US'); // Format with commas
-    };
-  
-    const payouts = [];
-  
-    // Iterate over sorted positions and calculate payouts for tied players
-    let adjustedPosition = 1; // To track the adjusted position
-    sortedPositions.forEach(position => {
-      const { count, players } = positionCounts[position];
-      const payoutPercentageArray = payoutPercentages.slice(adjustedPosition - 1, adjustedPosition - 1 + count);
-  
-      // Calculate total payout for this position (for all players tied)
-      const totalPayout = payoutPercentageArray.reduce((sum, percentage) => {
-        return sum + (tournament.purse * percentage) / 100;
-      }, 0);
-  
-      // Amount for each player in the tied position
-      const amountForPlayer = totalPayout / count;
-  
-      // Push payout information for each player
-      players.forEach(player => {
-        const payout = formatPayout(amountForPlayer);
-        payouts.push({
-          name: player.name,
-          position: player.position,
-          score: player.score,
-          payout: String(payout) === 'NaN' ? '0' : payout, // formatted with commas, 'NaN' handling
-        });
+      console.log(`Username: ${user.username}, Total Payout: $${totalPayout.toFixed(2)}`);
+      picks.forEach((pick, idx) => {
+        const player = payouts.find(p => p.name === pick); // Find the player object in payouts
+      
+        // Check if the player was found
+        const payout = player ? player.payout : '0.00'; // If player exists, use their payout, otherwise use '0.00'
+      
+        console.log(`  Pick ${idx + 1}: ${pick} (Payout: $${payout})`);
       });
-  
-      adjustedPosition += count; // Increment the adjusted position by the count of players in the current tied position
+      
     });
-  
-    return payouts;
   };
   
-  
-
-  // const logGolfersLeaderboardAndUsersPicks = () => {
-  //   const payouts = useMemo(() => calculatePayouts(), [players, tournament]);
-  //   //console.log("are these siething", payouts)
-  //   // Log golfers' leaderboard and payouts
-  //   //console.log('Golfers Leaderboard and Payouts:');
-  //   //console.log('------------------------------------');
-  //   payouts.forEach((player, index) => {
-  //     //console.log(`Position: ${player.position}, Name: ${player.name}, Score: ${player.score}, Payout: $${player.payout}`);
-  //   });
-  
-  //   // Log users' picks and their payouts
-  //   //console.log('Users and Their Picks with Payouts:');
-  //   //console.log('------------------------------------');
-  //   users.forEach((user) => {
-  //     const picks = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6];
-  //     const userPayout = picks
-  //       .map(pick => {
-  //         const player = payouts.find(p => p.name === pick);
-  //         return player ? player.payout : '0.00'; // If player is not found, default payout is 0.00
-  //       })
-  //       .reduce((sum, payout) => sum + parseFloat(payout), 0); // Calculate total payout for the user
-  
-  //     //console.log(`Username: ${user.username}, Total Payout: $${userPayout.toFixed(2)}`);
-  //     picks.forEach((pick, idx) => {
-  //       const player = payouts.find(p => p.name === pick); // Find the player object in payouts
-      
-  //       // Check if the player was found
-  //       const payout = player ? player.payout : '0.00'; // If player exists, use their payout, otherwise use '0.00'
-      
-  //       //console.log(`  Pick ${idx + 1}: ${pick} (Payout: $${payout})`);
-  //     });
-      
-  //   });
-  // };
-  
-  // // Call the function to log golfers' leaderboard and user picks
-  // logGolfersLeaderboardAndUsersPicks();
+  // Call the function to log golfers' leaderboard and user picks
+  logGolfersLeaderboardAndUsersPicks();
   
   const countPlayerPicks = () => {
     const pickCounts = {};
@@ -288,6 +275,49 @@ const Scoreboard = ({ navigation }) => {
   
     return topPlayers;
   };  
+
+  const isProjectedCutLineVisible = () => {
+    const today = new Date().getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    return today === 4 || today === 5; // 4 = Thursday, 5 = Friday
+  };
+
+  const sortedUsers = [...users]
+  .filter(user => [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(pick => pick))
+  .sort((a, b) => calculateTotalWinnings(b) - calculateTotalWinnings(a)); 
+  
+  const unsortedUsers = [...users]
+  .filter(user => ![user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(pick => pick));
+  
+
+  const playerCards = useMemo(() => {
+    if(sortedUsers === undefined || unsortedUsers === undefined || players === undefined) return
+    return [...sortedUsers, ...unsortedUsers].map((user, index) => {
+      const totalScore = calculateTotalScore(user);
+      const totalWinnings = abbreviateNumber(calculateTotalWinnings(user));
+      const isLoggedInUser = username === user.username;
+      const allPicksChosen = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(pick => pick);
+      return (
+        <PlayerCard 
+          key={`${user.username}-${refreshScoreboard}`} // helps force rerender on refresh
+          user={user} 
+          index={index} 
+          totalScore={totalScore} 
+          totalWinnings={totalWinnings} 
+          isLoggedInUser={isLoggedInUser} 
+          secretScoreboard={secretScoreboard}
+          getPlayerScore={getPlayerScore}
+          getPlayerPosition={getPlayerPosition}
+          getPlayerRoundScore={getPlayerRoundScore}
+          getPlayerThruStatus={getPlayerThruStatus}
+          calculatePayouts={calculatePayoutsWrapper}
+          picksChosen={allPicksChosen}
+          username={username}
+        />
+      );
+    });
+  }, [sortedUsers, unsortedUsers, username, secretScoreboard, refreshScoreboard, players, tournament]);
+  
+  
   
 
 
@@ -300,67 +330,38 @@ const Scoreboard = ({ navigation }) => {
     return <LoginScreen />;
   }
   
-  
-  const sortedUsers = [...users]
-  .filter(user => [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(pick => pick))
-  .sort((a, b) => calculateTotalWinnings(b) - calculateTotalWinnings(a)); 
-  
-  const unsortedUsers = [...users]
-  .filter(user => ![user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(pick => pick));
-  
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <View style={{flex: 1, top: 50, alignItems: 'center'}}>
-      <View style={{marginBottom: 20}}>
-         <Slider onSelectTournamentScoreboard={() => setActive(true)}  onSelectSeasonalScoreboard={() => setActive(false)} active={active}/>
+      <View style={{flex: 1, marginTop: 50, alignItems: 'center'}}>
+        <View style={{marginBottom: 20}}>
+           <Slider onSelectTournamentScoreboard={() => setActive(true)}  onSelectSeasonalScoreboard={() => setActive(false)} active={active}/>
+        </View>
+        {(tournament && active) && (
+          <View style={styles.tournamentHeader}>
+            <Text style={styles.tournamentName}>{tournament.name}</Text>
+            <Text style={styles.tournamentDetails}>
+              Purse: ${tournament.purse.toLocaleString()} | Year: {tournament.year}
+            </Text>
+            {showProjectedCut && <Text style={styles.tournamentDetails}>Projected Cut: {cutLine}</Text>}
+          </View>
+        )}
+        {/* Top 3 Players with Percentages */}
+        {(active && !secretScoreboard)&&
+        <View style={styles.topPlayersContainer}>
+          <Text style={{textAlign: 'center', fontSize: 16, fontWeight: 'bold', color: 'white'}}>Top 3 Most Picked</Text>
+          {top3Players.map((player, index) => (
+            <Text key={index} style={styles.topPlayer}>
+              {index + 1}. {player.name} - {player.percentage}%
+            </Text>
+          ))}
+        </View>}
+        
+        {!active ? 
+          <SeasonLeaderboard selectedPool={selectedPool}/> 
+          : 
+          playerCards
+        }
       </View>
-      {(tournament && active) && (
-        <View style={styles.tournamentHeader}>
-          <Image
-            source={require('../assets/mastersLogo.png')}
-            style={{ width: 175, height: 35, marginBottom: 10 }}
-          />
-          {/* <Text style={styles.tournamentName}>{tournament.name}</Text> */}
-          <Text style={styles.tournamentDetails}>
-            Purse: ${tournament.purse.toLocaleString()} | Year: {tournament.year}
-          </Text>
-        </View>
-      )}
-      {/* Top 3 Players with Percentages */}
-      {(active && !secretScoreboard)&&
-      <View style={styles.topPlayersContainer}>
-        <Text style={{textAlign: 'center', fontSize: 16, fontWeight: 'bold', color: 'white'}}>Top 3 Most Picked</Text>
-        {top3Players.map((player, index) => (
-          <Text key={index} style={styles.topPlayer}>
-            {index + 1}. {player.name} - {player.percentage}%
-          </Text>
-        ))}
-      </View>}
-      
-      {!active ? 
-        <SeasonLeaderboard /> 
-        : 
-        [...sortedUsers,... unsortedUsers].map((user, index) => {
-          const totalScore = calculateTotalScore(user);
-          const totalWinnings = abbreviateNumber(calculateTotalWinnings(user));
-          const isLoggedInUser = username === user.username;
-          const allPicksChosen = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(pick => pick);
-  
-          return <PlayerCard 
-          key={index}
-          user={user} 
-          index={index} 
-          totalScore={totalScore} 
-          totalWinnings={totalWinnings} 
-          isLoggedInUser={isLoggedInUser} 
-          secretScoreboard={secretScoreboard}
-          getPlayerScore={getPlayerScore}
-          getPlayerPosition={getPlayerPosition}
-          getPlayerThruStatus={getPlayerThruStatus}
-          calculatePayouts={calculatePayouts}
-          />
-        })}
-        </View>
     </ScrollView>
   );  
 };
@@ -368,10 +369,11 @@ const Scoreboard = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#18453B',
+    backgroundColor: '#305115',
     paddingVertical: 10,
     alignItems: 'center',
     height: isIos ? undefined : 1, // Ensures proper scrolling behavior on the web
+    marginBottom: 50,
   },
   scoreboardContainer: {
     width: 375,
@@ -387,7 +389,7 @@ const styles = StyleSheet.create({
   scoreboardTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#18453B',
+    color: '#305115',
     marginBottom: 20,
   },
   playerRow: {
@@ -399,11 +401,7 @@ const styles = StyleSheet.create({
   playerRank: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#18453B',
-  },
-  scrollView: {
-    width: '100%',
-    padding: 20,
+    color: '#305115',
   },
   tournamentHeader: {
     backgroundColor: '#fff',
@@ -421,11 +419,11 @@ const styles = StyleSheet.create({
   tournamentName: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#18453B',
+    color: '#305115',
   },
   tournamentDetails: {
     fontSize: 16,
-    color: '#18453B',
+    color: '#305115',
   },
   playerCard: {
     width: 375, // Widened card
@@ -449,14 +447,14 @@ const styles = StyleSheet.create({
   position: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#18453B',
+    color: '#305115',
     width: '25%',
     textAlign: 'center',
   },
   playerName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#18453B',
+    color: '#305115',
     width: '40%',
     textAlign: 'center',
     bottom: 20
@@ -464,7 +462,7 @@ const styles = StyleSheet.create({
   totalScore: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#18453B',
+    color: '#305115',
     width: '35%',
     textAlign: 'center',
   },
@@ -487,17 +485,17 @@ const styles = StyleSheet.create({
   pickLabel: {
     width: '15%',
     fontSize: 16,
-    color: '#18453B',
+    color: '#305115',
   },
   pickValue: {
     width: '55%',
     fontSize: 16,
-    color: '#18453B',
+    color: '#305115',
   },
   pickScore: {
     width: '30%',
     fontSize: 16,
-    color: '#18453B',
+    color: '#305115',
     textAlign: 'center',
   },
   topPlayersContainer: {  

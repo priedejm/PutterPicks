@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Platform, Modal } from 'react-native';
-import { getDatabase, ref, get, child, update } from 'firebase/database';
+import { getDatabase, ref, get, onValue, update } from 'firebase/database';
 import { app } from '../config';
 import { useUser } from '../context/UserContext';
 import LoginScreen from './Login';
@@ -9,7 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const isIos = Platform.OS === 'ios';
 const database = getDatabase(app);
 
-const PlayerPicks = () => {
+const PlayerPicks = ({selectedPool}) => {
   const { isLoggedIn, logout, triggerScoreboardRefresh } = useUser();
   const [players, setPlayers] = useState([]);
   const [selectedPlayers, setSelectedPlayers] = useState(["", "", "", "", "", "", "", ""]); // Now 8 selectors
@@ -31,14 +31,17 @@ const PlayerPicks = () => {
   }, [isLoggedIn]);
 
   useEffect(() => {
-    const featureFlagRef = ref(database, 'featureflags/lockedPicks');
-    get(featureFlagRef).then((snapshot) => {
+    const lockedPicksRef = ref(database, 'featureflags/lockedPicks');
+    // Set up a real-time listener for changes in 'lockedPicks'
+    const listener = onValue(lockedPicksRef, (snapshot) => {
       if (snapshot.exists()) {
         setLockedPicks(snapshot.val());
       }
-    }).catch((error) => {
-      console.error("Error fetching feature flag:", error);
     });
+    // Cleanup listener on component unmount
+    return () => {
+      listener(); // Unsubscribe from the listener
+    };
   }, [isLoggedIn]);
 
   useEffect(() => {
@@ -56,45 +59,30 @@ const PlayerPicks = () => {
 
   useEffect(() => {
     if (username) {
-      const userRef = ref(database, 'users');
-      get(userRef).then((snapshot) => {
-        if (snapshot.exists()) {
-          const usersData = snapshot.val();
-          const user = Object.values(usersData).find(u => u.username === username);
-          if (user) {
-            const userPicks = [
-              user.pick1, 
-              user.pick2, 
-              user.pick3, 
-              user.pick4, 
-              user.pick5, 
-              user.pick6,
-              user.alt1,  // Added alt1
-              user.alt2   // Added alt2
-            ];
-            setSelectedPlayers(userPicks); 
-          }
-        }
-      }).catch((error) => {
-        console.error(error);
-      });
+      const user = Object.values(selectedPool?.users).find(u => u.username === username);
+      console.log("is this a user", user)
+      if (user) {
+        const userPicks = [
+          user.pick1, 
+          user.pick2, 
+          user.pick3, 
+          user.pick4, 
+          user.pick5, 
+          user.pick6,
+          user.alt1,  // Added alt1
+          user.alt2   // Added alt2
+        ];
+        setSelectedPlayers(userPicks); 
+      }
     }
   }, [username, isLoggedIn]);
 
   useEffect(() => {
-    const userRef = ref(database, 'users');
-    get(userRef).then((snapshot) => {
-      if (snapshot.exists()) {
-        const usersData = snapshot.val();
-        const currentUser = Object.values(usersData).find(u => u.username === username);
-        if (currentUser) {
-          const pickHistory = currentUser.pickHistory;
-          setUserPicks(pickHistory);
-        }
-      }
-    }).catch((error) => {
-      console.error(error);
-    });
+    const currentUser = Object.values(selectedPool?.users).find(u => u.username === username);
+    if (currentUser) {
+      const pickHistory = currentUser.pickHistory;
+      setUserPicks(pickHistory);
+    }
   }, [username, isLoggedIn]);
 
   const handleSelectPlayer = (index, playerName) => {
@@ -316,7 +304,7 @@ const PlayerPicks = () => {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#18453B',
+    backgroundColor: '#305115',
     paddingVertical: 10,
     paddingHorizontal: 20,
     height: isIos ? undefined : 1, // Ensures proper scrolling behavior on the web

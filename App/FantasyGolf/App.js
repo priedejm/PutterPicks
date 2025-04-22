@@ -3,18 +3,21 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Platform, LogBox } from 'react-native';
-import { MaterialCommunityIcons } from 'react-native-vector-icons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Home from './Components/Home';
 import Login from './Components/Login';
 import Scoreboard from './Components/Scoreboard';
 import Leaderboard from './Components/Leaderboard';
 import PlayerPicks from './Components/PlayerPicks';
-import { UserProvider } from './context/UserContext'; // Importing context
+import { UserProvider } from './context/UserContext';
+import Dashboard from './Components/Dashboard';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-function iOSTabNavigator() {
+function BottomTabs({ route }) {
+  const { selectedPool } = route.params ?? {};
+
   return (
     <Tab.Navigator
       initialRouteName='Leaderboard'
@@ -26,7 +29,8 @@ function iOSTabNavigator() {
     >
       <Tab.Screen
         name="Scoreboard"
-        component={Scoreboard}
+        initialParams={{ selectedPool }}
+        children={() => <Scoreboard selectedPool={selectedPool} />}
         options={{
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="scoreboard" color={color} size={size} />
@@ -35,7 +39,8 @@ function iOSTabNavigator() {
       />
       <Tab.Screen
         name="Leaderboard"
-        component={Leaderboard}
+        initialParams={{ selectedPool }}
+        children={() => <Leaderboard selectedPool={selectedPool} />}
         options={{
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="trophy" color={color} size={size} />
@@ -44,7 +49,8 @@ function iOSTabNavigator() {
       />
       <Tab.Screen
         name="PlayerPicks"
-        component={PlayerPicks}
+        initialParams={{ selectedPool }}
+        children={() => <PlayerPicks selectedPool={selectedPool} />}
         options={{
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="account" color={color} size={size} />
@@ -55,30 +61,24 @@ function iOSTabNavigator() {
   );
 }
 
+
 export default function App() {
   useEffect(() => {
-    // Suppress specific warnings from LogBox
     LogBox.ignoreLogs([
       'Warning: Text strings must be rendered within a <Text> component',
     ]);
-    // You can also ignore all log messages (not recommended in production)
-    // LogBox.ignoreAllLogs(true);
   }, []);
 
   return (
-    <UserProvider> {/* Wrapping the app with the UserProvider */}
+    <UserProvider>
       <NavigationContainer>
-        {Platform.OS === 'ios' ? (
-          iOSTabNavigator()
-        ) : (
-          <Stack.Navigator>
-            <Stack.Screen name="Login" component={Login} options={{ headerShown: false }} />
-            <Stack.Screen name="Home" component={Home} />
-            <Stack.Screen name="Scoreboard" component={Scoreboard} />
-            <Stack.Screen name="Leaderboard" component={Leaderboard} />
-            <Stack.Screen name="PlayerPicks" component={PlayerPicks} />
-          </Stack.Navigator>
-        )}
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {/* Initial screen with NO bottom tabs */}
+          <Stack.Screen name="Dashboard" component={Dashboard} />
+
+          {/* Bottom tabs appear after this point */}
+          <Stack.Screen name="Main" component={BottomTabs} />
+        </Stack.Navigator>
       </NavigationContainer>
     </UserProvider>
   );

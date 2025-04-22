@@ -1,314 +1,196 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { StyleSheet, Text, View, ScrollView, Platform, RefreshControl, Image } from 'react-native';
-import { getDatabase, ref, get, update } from "firebase/database"; 
+import { StyleSheet, Text, View, ScrollView, Platform, RefreshControl, Image, Dimensions } from 'react-native';
+import { getDatabase, ref, get, update, onValue } from "firebase/database"; 
+import {
+  updateUsersSeasonWinnings,
+  resetUserPicks,
+  syncPicksToTournament
+} from '../utils/firebaseFunctions';
 import { app } from '../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  scale,
+  ScaledSheet,
+} from 'react-native-size-matters';
 import Login from './Login';
 import CountryFlag from 'react-native-country-flag';
 import { countryCodeMap } from '../utils/countryCodeMap'; // Import the country code map
 import { useUser } from '../context/UserContext'; // Import the UserContext
 import PlayerCard from './PlayerCard';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
+import { useCallback } from 'react';
+import { calculatePayouts } from '../utils/utilFunctions';
+
+
 
 const database = getDatabase(app);
-
-// PGA Tour payout percentages for each position (from 1 to 65)
-// const payoutPercentages = [
-//   18.0, 10.9, 6.9, 4.9, 4.1, 3.625, 3.375, 3.125, 2.925, 2.725, 2.525, 2.325, 2.125,
-//   1.925, 1.825, 1.725, 1.625, 1.525, 1.425, 1.325, 1.225, 1.125, 1.045, 0.965, 0.885,
-//   0.805, 0.775, 0.745, 0.715, 0.685, 0.655, 0.625, 0.595, 0.57, 0.545, 0.52, 0.495,
-//   0.475, 0.455, 0.435, 0.415, 0.395, 0.375, 0.355, 0.335, 0.315, 0.295, 0.279, 0.265,
-//   0.257, 0.251, 0.245, 0.241, 0.237, 0.235, 0.233, 0.231, 0.229, 0.227, 0.225, 0.223,
-//   0.221, 0.219, 0.217, 0.215
-// ];
-
-// masters percentages
-const payoutPercentages = [
-  18.0, 10.8, 6.8, 4.8, 4.0, 3.6, 3.35, 3.1, 2.9, 2.7, 2.5, 2.3, 2.1,
-  1.9, 1.8, 1.7, 1.6, 1.5, 1.4, 1.3, 1.2, 1.12, 1.04, 0.96, 0.88,
-  0.8, 0.77, 0.74, 0.71, 0.68, 0.65, 0.62, 0.59, 0.57, 0.54, 0.52, 0.49,
-  0.47, 0.45, 0.43, 0.41, 0.39, 0.37, 0.35, 0.33, 0.31, 0.29, 0.274, 0.26,
-  0.252, 0.246, 0.24, 0.236, 0.232, 0.228, 0.224, 0.22, 0.216, 0.212, 0.208
-];
-
-const amateurPlayers = [
-  'Ben James',
-  'Hiroshi Tai',
-  'Jose Luis Ballester',
-  'Noah Kent',
-  'Justin Hastings',
-  'Evan Beck'
-]
-
+const screenWidth = Dimensions.get('window').width;
 const isIos = Platform.OS === 'ios';
+const isLargeScreen = !isIos
 
 const Leaderboard = () => {
-  const { triggerScoreboardRefresh } = useUser();
+  const { triggerScoreboardRefresh, isLoggedIn, refreshScoreboard } = useUser();
+  const [payoutPercentages, setPayoutPercentages] = useState([]);
+  const route = useRoute();
+  const { selectedPool } = route.params || {};
+  const latestTournament = selectedPool.tournaments[selectedPool.tournaments.length - 1];
   const [players, setPlayers] = useState([]); 
-  const [tournament, setTournament] = useState(null); // State for storing tournament info
+  const [tournament, setTournament] = useState(latestTournament); // State for storing tournament info
   const [refreshing, setRefreshing] = useState(false); // State for pull-to-refresh
   const [username, setUsername] = useState(); // State for pull-to-refresh
   const [user, setUser] = useState(); // State for pull-to-refresh
   const [users, setUsers] = useState();
-  useEffect(() => {
-    const grabUsername = async () => {
-      const usersSnapshot = await get(ref(database, 'users'));
-      const storedUsername = await AsyncStorage.getItem('username');
-      if (storedUsername) setUsername(storedUsername);
-      if (usersSnapshot.exists()) setUsers(usersSnapshot.val());
-
-    };
-    grabUsername();
-  }, []);
-
-  // const playerEarnings = {
-  //   Justin: 8901169,
-  //   Davis: 8328364,
-  //   Connor: 7856631,
-  //   Cameron: 7533373,
-  //   Griffin: 4153456,  
-  //   Greg: 7739074,
-  //   Henry: 5429721,
-  //   Jack: 4753415,
-  //   Charlie: 3397731,
-  //   Wesley: 2574715,
-  //   Tom: 1845560,
-  //   Landon: 768488,
-  // };
-
-  // useEffect(() => {
-  //   const updateUsersSeasonWinnings = async () => {
-  //     // Reference to the users in the database
-  //     const usersRef = ref(database, 'users');
-  //     get(usersRef).then((snapshot) => {
-  //       if (snapshot.exists()) {
-  //         const users = snapshot.val(); // Get all users
-  
-  //         // Iterate over each user and update their 'seasonWinnings' field
-  //         Object.keys(users).forEach((key) => {
-  //           const user = users[key];
-  
-  //           // Check if the username exists in the playerEarnings map
-  //           if (playerEarnings[user.username]) {
-  //             // Update the user with their earnings from the mapping
-  //             const userRef = ref(database, `users/${key}`); // Correct the database path
-  //             update(userRef, {
-  //               seasonWinnings: playerEarnings[user.username], // Use earnings from mapping
-  //             }).then(() => {
-  //               //console.log(`Updated seasonWinnings for ${user.username}`); // Fixed template literal
-  //             }).catch((error) => {
-  //               console.error(`Error updating ${user.username}:`, error); // Fixed template literal
-  //             });
-  //           }
-  //         });
-  //       } else {
-  //         //console.log("No data available in 'users'");
-  //       }
-  //     }).catch((error) => {
-  //       console.error("Error fetching users:", error);
-  //     });
-  //   };
-  
-  //   // Call the function to update users' seasonWinnings
-  //   updateUsersSeasonWinnings();
-  // }, []); // Empty dependency array to run only once when the component mounts
-  
+  const [amateurPlayers, setAmateurPlayers] = useState([]);
+  const [specialPayout, setSpecialPayout] = useState();
+  const [cutLine, setCutLine] = useState();
+  const [showProjectedCut, setShowProjectedCut] = useState(false);
+  // console.log("selectedPool is", selectedPool, route)
+  // console.log("useres are", selectedPool?.users)
 
   useEffect(() => {
-    if(!username) return;
-    fetchPlayers();
-    fetchTournament();
-  }, [username]);
-
-  // useEffect(() => {
-  //   const resetUserPicks = async () => {
-  //     try {
-  //       const usersRef = ref(database, 'users'); // Reference to the users in the database
-  //       const usersSnapshot = await get(usersRef); // Fetch the users data from Firebase
-  
-  //       if (usersSnapshot.exists()) {
-  //         const users = usersSnapshot.val(); // Get the users data
-  
-  //         // Iterate over each user and reset their pick fields (pick1 - pick6) and alt fields to empty string
-  //         Object.keys(users).forEach((key) => {
-  //           const user = users[key];
-  
-  //           // Update each pick field (pick1 to pick6) and alt fields to an empty string
-  //           const userRef = ref(database, `users/${key}`);
-  //           update(userRef, {
-  //             pick1: "",
-  //             pick2: "",
-  //             pick3: "",
-  //             pick4: "",
-  //             pick5: "",
-  //             pick6: "",
-  //             alt1: "",
-  //             alt2: ""
-  //           }).then(() => {
-  //             console.log(`Reset picks and alt fields for user: ${user.username}`);
-  //           }).catch((error) => {
-  //             console.error(`Error resetting fields for ${user.username}:`, error);
-  //           });
-  //         });
-  //       } else {
-  //         console.log("No users found in the database");
-  //       }
-  //     } catch (error) {
-  //       console.error("Error fetching users:", error);
-  //     }
-  //   };
-  
-  //   // Call the function to reset user picks when this effect runs
-  //   resetUserPicks();
-  // }, []); // Empty dependency array to ensure it runs only once when the component mounts
-  
-  
-
-  // useEffect(() => {
-  //   if(!players || players?.length === 0 || players === undefined) return;
-  //   const db = getDatabase();
-
-  //   const syncPicks = async () => {
-  //     try {
-  //       const snapshot = await get(ref(db));
-  //       if (!snapshot.exists()) return;
-
-  //       const data = snapshot.val();
-  //       const { tournaments, users } = data;
-
-  //       if (!tournaments || tournaments.length === 0) return;
-
-  //       // Get latest tournament
-  //       const latestTournamentIndex = tournaments.length - 1;
-  //       const latestTournament = tournaments[latestTournamentIndex];
-
-  //       // Avoid duplicating entries if already added
-  //       if (latestTournament.entries) return;
-  //       let payouts = calculatePayouts();
-  //       //console.log("gotem", payouts)
-
-
-  //       // Map users to entries format
-  //       const entries = users.map(user => ({
-  //         username: user.username,
-  //         pick1: user.pick1,
-  //         pick2: user.pick2,
-  //         pick3: user.pick3,
-  //         pick4: user.pick4,
-  //         pick5: user.pick5,
-  //         pick6: user.pick6
-  //       }));
-
-  //       // Add entries to the latest tournament
-  //       tournaments[latestTournamentIndex] = {
-  //         ...latestTournament,
-  //         entries
-  //       };
-
-  //       // Update tournaments in DB
-  //       await update(ref(db), { tournaments });
-
-  //       //console.log('User picks successfully added to latest tournament');
-  //     } catch (error) {
-  //       console.error('Error syncing user picks to tournament:', error);
-  //     }
-  //   };
-
-  //   syncPicks();
-  // }, [players]);
-
-
-  const fetchPlayers = async (fromRefresh) => {
-    //console.log("fetching");
-    const playersRef = ref(database, 'players/players');
-    try {
-      const usersSnapshot = await get(ref(database, 'users'));
-      const snapshot = await get(playersRef);
-  
-      if (snapshot.exists()) {
-        //console.log("new players fetched");
-        setPlayers(Object.values(snapshot.val())); 
-  
-        if (usersSnapshot.exists()) {
-          const users = usersSnapshot.val();
-  
-          // Find the user with the matching username
-          const foundUser = Object.values(users).find(user => user.username === username);
-  
-          if (foundUser) {
-            // Set the found user to the context or state
-            setUser(foundUser);  // Assuming you have a setUser function in context or state
+    const fetchData = async () => {
+      try {
+        const storedUsername = await AsyncStorage.getItem('username');
+        if (storedUsername && selectedPool?.users) {
+          setUsername(storedUsername);
+          const matchedUser = selectedPool.users.find(user => user.username === storedUsername);
+          console.log("we got a matchoned one tho right", matchedUser)
+          if (matchedUser) {
+            setUser(matchedUser);
+          } else {
+            console.warn("No user matched for username:", storedUsername);
           }
         }
-        if(fromRefresh) triggerScoreboardRefresh();
-      } else {
-        //console.log("No data available");
+        
+        setUsers(selectedPool?.users)
+        const amateurSnapshot = await get(ref(database, 'amateurPlayers'));
+        const payoutSnapshot = await get(ref(database, 'payoutPercentages'));
+        if (amateurSnapshot.exists()) setAmateurPlayers(Object.values(amateurSnapshot.val()));
+        if (payoutSnapshot.exists()) setPayoutPercentages(Object.values(payoutSnapshot.val()));
+
+      } catch (error) {
+        console.error("Error fetching data:", error);
       }
-    } catch (error) {
-      console.error(error);
-    }
-  };
+    };
+    fetchData();
+  }, []);
+
+
+  useFocusEffect(
+    useCallback(() => {
+      const playersRef = ref(database, 'players/players');
+      const unsubscribePlayers = onValue(playersRef, snapshot => {
+        if (snapshot.exists()) {
+          let players = Object.values(snapshot.val());
+          setPlayers(players);
+        }
+      });
+  
+      return () => {
+        unsubscribePlayers();
+      };
+      
+    }, [refreshScoreboard, username])
+  );
+
+  useEffect(() => {
+    setShowProjectedCut(isProjectedCutLineVisible());
+  }, []);  
+
+  useEffect(() => {
+    if(players?.length < 1 || payoutPercentages?.length < 1) return;
+    //console.log("array length", payoutPercentages?.length)
+    //console.log("this is the 50th player", players[payoutPercentages?.length-1])
+    setCutLine(players[payoutPercentages?.length-1]?.score)
+  }, [players, payoutPercentages])
+  
+  // useEffect(() => {
+  //   fetchTournament();
+  // }, [refreshScoreboard]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const specialPayoutRef = ref(database, 'featureflags/specialPayout');
+      const unsubscribe = onValue(specialPayoutRef, (snapshot) => {
+        if (snapshot.exists()) {
+          setSpecialPayout(snapshot.val());
+        }
+      });
+  
+      return () => unsubscribe();
+    }, [])
+  );  
+
+  // Update seasonWinnings for each user
+  // useEffect(() => {
+  //   if(!users) return;
+  //   updateUsersSeasonWinnings(users, selectedPool.name);
+  // }, [users]);
+  
+  // Reset picks and update pickHistory and their counts
+  // useEffect(() => {
+  //   resetUserPicks(users);
+  // }, [users]);
+
+  // adds current entries to the latest tournament - have payouts if we want to add that
+  // useEffect(() => {
+  //   syncPicksToTournament(players, calculatePayouts, selectedPool.name, users);
+  // }, [players]);
+
+  // const fetchPlayers = async (fromRefresh) => {
+  //   //console.log("fetching");
+  //   const playersRef = ref(database, 'players/players');
+  //   try {
+  //     const snapshot = await get(playersRef);
+  
+  //     if (snapshot.exists()) {
+  //       //console.log("new players fetched");
+  //       setPlayers(Object.values(snapshot.val())); 
+  //       // Find the user with the matching username
+  //       const foundUser = Object.values(users).find(user => user.username === username);
+  //       console.log("username is", username)
+  //       if (foundUser) {
+  //         // Set the found user to the context or state
+  //         setUser(foundUser);  // Assuming you have a setUser function in context or state
+  //       }
+  //       if(fromRefresh) triggerScoreboardRefresh();
+  //     } else {
+  //       //console.log("No data available");
+  //     }
+  //   } catch (error) {
+  //     console.error(error);
+  //   }
+  // };
   
 
   // Function to fetch tournament info from the Firebase database
-  const fetchTournament = async () => {
-    const tournamentRef = ref(database, 'tournaments');
-    try {
-      const snapshot = await get(tournamentRef);
-      if (snapshot.exists()) {
-        setTournament(Object.values(snapshot.val())[1]);
-      }
-    } catch (error) {
-      console.error("Error fetching tournament data:", error);
-    }
-  };
+  // const fetchTournament = async () => {
+  //   const tournamentRef = ref(database, 'tournaments');
+  //   try {
+  //     const snapshot = await get(tournamentRef);
+  //     if (snapshot.exists()) {
+  //       const tournamentsArray = Object.values(snapshot.val());
+  //       const latestTournament = tournamentsArray[tournamentsArray.length - 1];
+  //       setTournament(latestTournament);
+  //     }
+  //   } catch (error) {
+  //     console.error("Error fetching tournament data:", error);
+  //   }
+  // };
 
   // Function to handle pull-to-refresh
   const onRefresh = () => {
-    setRefreshing(true);
-    fetchPlayers(true);
-    fetchTournament();
-    setRefreshing(false);
+    return
+    // setRefreshing(true);
+    // fetchPlayers(true);
+    // fetchTournament();
+    // setRefreshing(false);
   };
 
   const getIsoCode = (countryCode) => {
     if (!countryCode) return;
     return countryCodeMap[countryCode] || countryCode.toLowerCase();
   };
-
-  const renderPlayers = () => {
-    const payouts = calculatePayouts(); // Calculate payouts once
-    return players.map((item, index) => {
-      let country = getIsoCode(item.country);
-  
-      // Find the player's payout
-      const payoutEntry = payouts.find(p => p.name === item.name);
-      const abbreviatedPayout = payoutEntry ? abbreviateNumber(parseFloat(payoutEntry.payout.replace(/,/g, ''))) : '-';
-  
-      return (
-        <View style={styles.row} key={index}>
-          <View style={{ justifyContent: 'center', alignItems: 'center', flex: 0.8 }}>
-            <Text style={[styles.cell]}>{item.position || "N/A"}</Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 3 }}>
-            <CountryFlag isoCode={country} size={15} />
-            <Text style={styles.playerCell} numberOfLines={1}>{item.name || "Unknown"}</Text>
-          </View>
-          <View style={{ justifyContent: 'center', alignItems: 'center', flex: 0.8, flexDirection: 'row' }}>
-            <Text style={[styles.cell, styles.scoreCell]}>{item.score || "0"}</Text>
-          </View>
-          <View style={{ justifyContent: 'center', alignItems: 'center', width: item?.thru_status.includes(":") ? '20%' : '10%', flexDirection: 'row' }}>
-            <Text style={[styles.cell, styles.thruCell]}>{item.thru_status || "N/A"}</Text>
-          </View>
-  
-          {/* Replace Rounds with Abbreviated Payout */}
-          <Text style={styles.roundsCell}>
-            {abbreviatedPayout}
-          </Text>
-        </View>
-      );
-    });
-  };
-  
 
   const getPlayerPosition = (playerName) => {
     const player = players.find(player => player.name === playerName);
@@ -319,6 +201,13 @@ const Leaderboard = () => {
     const player = players.find(player => player.name === playerName);
     return player ? player.thru_status : "N/A";
   };
+
+  const getPlayerRoundScore = (playerName) => {
+    const player = players.find(player => player.name === playerName);
+    const roundScore = player?.round;
+    return roundScore != null && roundScore !== '' ? roundScore : 'E';
+  };
+  
 
   const getPlayerScore = (playerName, totalScore) => {
     const player = players.find(player => player.name === playerName);
@@ -336,14 +225,26 @@ const Leaderboard = () => {
     return "N/A";
   };
 
+    // Function to format player name
+    const formatPlayerName = (name) => {
+      if (!name) return '';
+      const nameParts = name.split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' '); // In case of multiple last names
+      return `${firstName.charAt(0)}. ${lastName}`;
+    }
 
-  const calculateTotalScore = (user) => {
-    if(!user) return;
-    const totalScore = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6]
-      .map(pick => pick ? getPlayerScore(pick, true) : 0)
-      .reduce((total, score) => total + score, 0);
-    return totalScore;
-  };
+    const calculateTotalScore = useCallback((user) => {
+      if(!user) return 0;
+      const totalScore = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6]
+        .map(pick => {
+          const score = pick ? getPlayerScore(pick, true) : 0;
+          return typeof score === 'number' ? score : 0; // Handle 'N/A' or invalid values
+        })
+        .reduce((total, score) => total + score, 0);
+    
+      return totalScore;
+    }, [players]);
 
   const abbreviateNumber = (num) => {
     if (num >= 1_000_000) {
@@ -355,90 +256,33 @@ const Leaderboard = () => {
     }
   };
 
+  // Helper function to parse payouts
+  const parsePayout = (payout) => {
+    if (typeof payout === 'string') {
+      return parseFloat(payout.replace(/,/g, '')); // Remove commas and parse as float
+    }
+    return payout; // If already a number, return it
+  };
+
   const calculateTotalWinnings = (user) => {
-    if(!user) return;
+    if (!user) return 0;
     const picks = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6];
-    
-    // Helper function to parse payouts
-    const parsePayout = (payout) => {
-      if (typeof payout === 'string') {
-        return parseFloat(payout.replace(/,/g, '')); // Remove commas and parse as float
-      }
-      return payout; // If already a number, return it
-    };
   
     // Calculate the total payout by summing up the payouts for each pick
     const totalPayout = picks
       .map(pick => {
-        const player = calculatePayouts().find(player => pick === player.name);
+        const player = calculatePayoutsWrapper().find(player => pick === player.name);
         const payout = player ? player.payout : 0;
         return parsePayout(payout);
       })
       .reduce((sum, payout) => sum + payout, 0); // Sum all the payouts
     
-    return totalPayout; // Abbreviate the total payout
+    return totalPayout === 'N/A' ? 0 : totalPayout; ; // Abbreviate the total payout
   };
   
-  // Update the `calculatePayouts` function to exclude amateur players
-  
-  const calculatePayouts = () => {
-    if (!tournament || !tournament.purse) return [];
-  
-    // Filter players who are not amateurs and have a valid position and score
-    const playersPaid = players
-      .filter(player => !amateurPlayers.includes(player.name) && player.position !== 'CUT' && player.position !== 'N/A' && player.score !== '-');
-  
-    // Create a position to player mapping, and count how many players are tied at each position
-    const positionCounts = {};
-    playersPaid.forEach(player => {
-      let position = player.position.startsWith('T') ? parseInt(player.position.slice(1), 10) : parseInt(player.position, 10);
-      if (!positionCounts[position]) {
-        positionCounts[position] = { count: 0, players: [] };
-      }
-      positionCounts[position].count += 1;
-      positionCounts[position].players.push(player);
-    });
-  
-    // Sort positions in ascending order (lowest position number comes first)
-    const sortedPositions = Object.keys(positionCounts).map(Number).sort((a, b) => a - b);
-  
-    // Format number with commas, rounding to the nearest integer
-    const formatPayout = (amount) => {
-      const roundedAmount = Math.round(amount);  // Round to the nearest integer
-      return roundedAmount.toLocaleString('en-US'); // Format with commas
-    };
-  
-    const payouts = [];
-  
-    // Iterate over sorted positions and calculate payouts for tied players
-    let adjustedPosition = 1; // To track the adjusted position
-    sortedPositions.forEach(position => {
-      const { count, players } = positionCounts[position];
-      const payoutPercentageArray = payoutPercentages.slice(adjustedPosition - 1, adjustedPosition - 1 + count);
-  
-      // Calculate total payout for this position (for all players tied)
-      const totalPayout = payoutPercentageArray.reduce((sum, percentage) => {
-        return sum + (tournament.purse * percentage) / 100;
-      }, 0);
-  
-      // Amount for each player in the tied position
-      const amountForPlayer = totalPayout / count;
-  
-      // Push payout information for each player
-      players.forEach(player => {
-        const payout = formatPayout(amountForPlayer);
-        payouts.push({
-          name: player.name,
-          position: player.position,
-          score: player.score,
-          payout: String(payout) === 'NaN' ? '0' : payout, // formatted with commas, 'NaN' handling
-        });
-      });
-  
-      adjustedPosition += count; // Increment the adjusted position by the count of players in the current tied position
-    });
-  
-    return payouts;
+  const isProjectedCutLineVisible = () => {
+    const today = new Date().getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    return today === 4 || today === 5; // 4 = Thursday, 5 = Friday
   };
   
   
@@ -448,10 +292,15 @@ const Leaderboard = () => {
     if (rank === 3) return "rd";
     return "th";
   };
-  
-  const getUserRank = () => {
-    if (!users) return null;
 
+  const calculatePayoutsWrapper = useCallback(() => {
+    return calculatePayouts(tournament, players, amateurPlayers, payoutPercentages, specialPayout);
+  }, [tournament, players, amateurPlayers, payoutPercentages, specialPayout]);
+  
+
+  const getUserRank = useMemo(() => {
+    if (!users || !username) return null;
+    console.log("whats this", users)
     const sortedUsers = [...users]
       .filter(user =>
         [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(pick => pick)
@@ -460,78 +309,254 @@ const Leaderboard = () => {
 
     const rank = sortedUsers.findIndex(u => u.username === username) + 1;
     return rank ? `${rank}${getRankSuffix(rank)}` : null;
-  };
+  }, [users, username]);
+
+  const renderPlayers = useMemo(() => {
+    const payouts = calculatePayoutsWrapper();
+    return players.map((item, index) => {
+      let country = getIsoCode(item.country);
+      const hasntTeedOff = item.thru_status.includes(':');
+      const payoutEntry = payouts.find(p => p.name === item.name);
+      const abbreviatedPayout = payoutEntry ? abbreviateNumber(parseFloat(payoutEntry?.payout?.replace(/,/g, ''))) : '-';
+
+      return (
+        <View style={styles.row} key={index}>
+          <View style={styles.posCell}>
+            <Text style={[styles.cell]}>{item.position || "N/A"}</Text>
+          </View>
+          <View style={styles.playerCell}>
+            <CountryFlag isoCode={country} size={15} />
+            <Text style={[styles.cell, {marginLeft: isLargeScreen ? 5 : scale(5), width: scale(85), textAlign: 'left'}]} numberOfLines={1}>{formatPlayerName(item.name) || "Unknown"}</Text>
+          </View>
+          <View style={[styles.scoreCell, {marginLeft: isIos ? scale(5) : -8 }]}>
+            <Text style={[styles.cell]}>{item.score || "E"}</Text>
+          </View>
+          <View style={[styles.thruCell, {width: isIos ? scale(60) : 70 ,  marginLeft: isIos ? scale(10) : 10 }]}>
+            <Text style={styles.cell}>{item.thru_status || "N/A"}</Text>
+          </View>
+          <View style={[styles.roundCell, {marginLeft: isIos ? scale(10) : 0 }]}>
+            <Text style={styles.cell}>{item.round || "E"}</Text>
+          </View>
+          <Text style={[styles.earningsCell, {marginLeft: isIos ? scale(10) : 0 }]}>
+            {abbreviatedPayout}
+          </Text>
+        </View>
+      );
+    });
+  }, [players]);
   
-  const userRank = getUserRank();
-  const totalScore = calculateTotalScore(user);
+  const userRank = getUserRank;
+  const totalScore = useMemo(() => calculateTotalScore(user), [user]);
   const totalWinnings = calculateTotalWinnings(user);
+  const allPicksChosen = useMemo(() => (
+    [user?.pick1, user?.pick2, user?.pick3, user?.pick4, user?.pick5, user?.pick6].every(pick => pick)
+  ), [user]);
+
+  const memoizedPlayerCard = useMemo(() => {
+    if (!user || !totalWinnings) return null;
+  
+    return (
+      <PlayerCard
+        personalCard={true}
+        user={user}
+        totalScore={totalScore}
+        totalWinnings={totalWinnings}
+        isLoggedInUser={true}
+        secretScoreboard={false}
+        getPlayerPosition={getPlayerPosition}
+        getPlayerScore={getPlayerScore}
+        calculatePayouts={calculatePayoutsWrapper}
+        getPlayerThruStatus={getPlayerThruStatus}
+        getPlayerRoundScore={getPlayerRoundScore}
+        abbreviateNumber={abbreviateNumber}
+        picksChosen={allPicksChosen}
+        userRank={userRank}
+        username={username}
+      />
+    );
+  }, [user,totalScore,totalWinnings,allPicksChosen,userRank,username]);
+  
+  //console.log("user", user)
   //console.log("heller", totalWinnings)
   return (
     <View style={styles.wrapper}>
-      <View style={{ flex: 1, backgroundColor: '#18453B', top: 50, overflow: 'visible' }}>
-      <ScrollView
-        contentContainerStyle={styles.container}
-        refreshControl={isIos ? (
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-          />
-        ) : null}
-      >
-        <View style={{flex: 1, top: 50, alignItems: 'center'}}>
-          {/* Display Tournament Info at the top */}
-          {tournament && (
-            <View style={styles.tournamentHeader}>
-              <Image
-                source={require('../assets/mastersLogo.png')}
-                style={{ width: 175, height: 35, marginBottom: 10 }}
-              />
-              {/* <Text style={styles.tournamentName}>{tournament.name}</Text> */}
-              <Text style={styles.tournamentDetails}>
-                Purse: ${tournament.purse.toLocaleString()} | Year: {tournament.year}
-              </Text>
-            </View>
-          )}
-          {user && 
-          <View style={{bottom: 40, }}>
-          <PlayerCard
-              personalCard={true}
-              user={user}
-              totalScore={totalScore}
-              totalWinnings={totalWinnings}
-              isLoggedInUser={true}
-              secretScoreboard={false}
-              getPlayerPosition={getPlayerPosition}
-              getPlayerScore={getPlayerScore}
-              calculatePayouts={calculatePayouts}
-              getPlayerThruStatus={getPlayerThruStatus}
-              abbreviateNumber={abbreviateNumber}
-              userRank={userRank}
+      <View style={{ flex: 1, backgroundColor: '#305115', marginTop: 50, overflow: 'visible' }}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          refreshControl={isIos ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
             />
-            </View>}
-
-          <View style={{ width: 370, maxWidth: 500, alignSelf: 'center' , bottom: 40,}}>
-            <View style={styles.header}>
-              <Text style={[styles.headerText, styles.posHeader]}>Pos</Text>
-              <Text style={[styles.headerText, styles.playerHeader]}>Player</Text>
-              <Text style={[styles.headerText, styles.scoreHeader]}>Score</Text>
-              <Text style={[styles.headerText, styles.thruHeader]}>Thru</Text>
-              <Text style={[styles.headerText, styles.roundsHeader]}>Earnings</Text>
+          ) : null}
+        >
+          <View style={{flex: 1, top: 50, alignItems: 'center'}}>
+            {tournament && (
+              <View style={styles.tournamentHeader}>
+                <Text style={styles.tournamentName}>{tournament.name}</Text>
+                <Text style={styles.tournamentDetails}>
+                  Purse: ${tournament.purse.toLocaleString()} | Year: {tournament.year}
+                </Text>
+                {showProjectedCut && <Text style={styles.tournamentDetails}>Projected Cut: {cutLine}</Text>}
+              </View>
+            )}
+            {user && 
+              <View style={{bottom: 40}}>
+               {memoizedPlayerCard}
+              </View>
+            }
+            <View style={{ width: 380, maxWidth: 500, alignSelf: 'center' , bottom: 40 }}>
+              <View style={styles.header}>
+                <Text style={[styles.headerText, {width: isLargeScreen ? '30%' : scale(40)}]}>Pos</Text>
+                <Text style={[styles.headerText, { textAlign: 'left', width: isLargeScreen ? '55%' : scale(85), marginLeft: isLargeScreen ? 20 : undefined }]}>Player</Text>
+                <Text style={[styles.headerText, {marginLeft: isLargeScreen ? 35 : scale(25), textAlign: 'left', width: isLargeScreen ? '30%' : scale(40)}]}>Score</Text>
+                <Text style={[styles.headerText, {marginLeft: isLargeScreen ? 10 : scale(10), textAlign: 'left', width: isLargeScreen ? '30%' : scale(35)}]}>Thru</Text>
+                <Text style={[styles.headerText, {marginLeft: isLargeScreen ? 10 : scale(15), textAlign: 'left', width: isLargeScreen ? '30%' : scale(50)}]}>Round</Text>
+              </View>
+              {renderPlayers}
             </View>
-
-            {renderPlayers()} {/* Calling the renderPlayers function */}
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
       </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const scaledStyles = ScaledSheet.create({  
   wrapper: {
     flex: 1,
-    backgroundColor: '#18453B',
+    backgroundColor: '#305115',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -50 }, { translateY: -50 }],
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 20,
+    borderRadius: 8,
+  },
+  container: {
+    flexGrow: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    height: isIos ? undefined : 1, // Ensures proper scrolling behavior on the web
+    marginBottom: 50,
+  },
+  tournamentHeader: {
+    backgroundColor: '#fff',
+    padding: 10,
+    marginHorizontal: 10,
+    marginBottom: 30,
+    alignItems: 'center',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    width: 375,
+    bottom: 40,
+  },
+  tournamentName: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#305115',
+  },
+  tournamentDetails: {
+    fontSize: 16,
+    color: '#305115',
+  },
+  header: {
+    flexDirection: 'row',
+    backgroundColor: '#305115',
+    paddingVertical: 10,
+    paddingHorizontal: 0,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  headerText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  posHeader: {
+    flex: 0.8,
+  },
+  playerHeader: {
+    flex: 2,
+    textAlign: 'left',
+  },
+  scoreHeader: {
+    flex: 1.2,
+  },
+  thruHeader: {
+    flex: 1,
+  },
+  roundHeader: {
+    flex: .8,
+  },
+  row: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    padding: 10,
+    paddingVertical: 20,
+    marginBottom: 8,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+  },
+  cell: {
+    fontSize: 14,
+    color: '#305115',
+    textAlign: 'center',
+  },
+  posCell: {
+    width: '30@s',
+    //backgroundColor: 'red',
+  },
+  playerCell: {
+    fontSize: 14,
+    color: '#305115',
+    textAlign: 'left',
+    marginLeft: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '105@s',
+    //backgroundColor: 'grey',
+  },
+  scoreCell: {
+    width: '25@s',
+    marginLeft: '5@s',
+    //backgroundColor: 'yellow',
+  },
+  roundCell: {
+    width: '25@s',
+    marginLeft: '15@s',
+    //backgroundColor: 'yellow',
+  },
+  thruCell: {
+    width: '60@s',
+    marginLeft: '20@s',
+    // backgroundColor: 'pink',
+  },
+  earningsCell: {
+    width: '40@s',
+    fontSize: 14,
+    color: '#305115',
+    textAlign: 'center',
+    marginLeft: '20@s',
+    //backgroundColor: 'purple',
+  },
+});
+
+const regularStyles = StyleSheet.create({  
+  wrapper: {
+    flex: 1,
+    backgroundColor: '#305115',
   },
   loadingOverlay: {
     position: 'absolute',
@@ -566,15 +591,15 @@ const styles = StyleSheet.create({
   tournamentName: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#18453B',
+    color: '#305115',
   },
   tournamentDetails: {
     fontSize: 16,
-    color: '#18453B',
+    color: '#305115',
   },
   header: {
     flexDirection: 'row',
-    backgroundColor: '#18453B',
+    backgroundColor: '#305115',
     paddingVertical: 10,
     paddingHorizontal: 0,
     borderRadius: 8,
@@ -590,7 +615,7 @@ const styles = StyleSheet.create({
     flex: 0.8,
   },
   playerHeader: {
-    flex: 3.2,
+    flex: 2,
     textAlign: 'left',
   },
   scoreHeader: {
@@ -599,8 +624,8 @@ const styles = StyleSheet.create({
   thruHeader: {
     flex: 1,
   },
-  roundsHeader: {
-    flex: 2,
+  roundHeader: {
+    flex: .8,
   },
   row: {
     flexDirection: 'row',
@@ -616,31 +641,49 @@ const styles = StyleSheet.create({
   },
   cell: {
     fontSize: 14,
-    color: '#18453B',
+    color: '#305115',
     textAlign: 'center',
   },
   posCell: {
-    flex: 0.8,
+    width: 35,
+    //backgroundColor: 'red',
   },
   playerCell: {
     fontSize: 14,
-    color: '#18453B',
+    color: '#305115',
     textAlign: 'left',
-    flex: 3.2,
     marginLeft: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 130,
+    //backgroundColor: 'grey',
   },
   scoreCell: {
-    flex: 1.2,
+    width: 30,
+    marginLeft: 10,
+    //backgroundColor: 'yellow',
+  },
+  roundCell: {
+    width: 30,
+    marginLeft: 15,
+    //backgroundColor: 'yellow',
   },
   thruCell: {
-    flex: 1,
+    width: 30,
+    marginLeft: 15,
+    //backgroundColor: 'pink',
   },
-  roundsCell: {
-    flex: 2,
+  earningsCell: {
+    width: 50,
     fontSize: 14,
-    color: '#18453B',
+    color: '#305115',
     textAlign: 'center',
+    marginLeft: 15,
+    //backgroundColor: 'purple',
   },
 });
+
+const styles = !isIos ? regularStyles : scaledStyles;
+
 
 export default Leaderboard;

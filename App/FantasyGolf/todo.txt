@@ -3,15 +3,13 @@
 
 Meeting Call with chuck and juck. Plus justin 
 
- - cut line underneath tournamentHeader
  - grey out picks when picks are locked
- - import scale. 
  - percent picked in leaderboard player 
- - graph showing season earnings overtime
 
 
  git clone
  cd App
  cd FantasyGolf
  yarn install
- npm start
+ npm start 
+ 0

@@ -41,13 +41,13 @@ def fetchLeaderboard():
     chrome_options.add_experimental_option('useAutomationExtension', False)
 
 
-    chrome_options.binary_location = "/usr/bin/chromium-browser"  # Point to Chromium
-    service = Service("/usr/bin/chromedriver")  
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    # chrome_options.binary_location = "/usr/bin/chromium-browser"  # Point to Chromium
+    # service = Service("/usr/bin/chromedriver")  
+    # driver = webdriver.Chrome(service=service, options=chrome_options)
 
     # Automatically download and set up Chrome and ChromeDriver using webdriver_manager
-    # driver_path = ChromeDriverManager().install()  # This will download ChromeDriver and set the path
-    # driver = webdriver.Chrome(service=Service(driver_path), options=chrome_options)
+    driver_path = ChromeDriverManager().install()  # This will download ChromeDriver and set the path
+    driver = webdriver.Chrome(service=Service(driver_path), options=chrome_options)
     driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
         "source": """
             Object.defineProperty(navigator, 'webdriver', {
