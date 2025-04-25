@@ -30,6 +30,9 @@ const Scoreboard = ({ selectedPool }) => {
   const [specialPayout, setSpecialPayout] = useState();
   const [cutLine, setCutLine] = useState();
   const [showProjectedCut, setShowProjectedCut] = useState(false);
+  const [sortedUsers, setSortedUsers] = useState([]);
+  const [unsortedUsers, setUnsortedUsers] = useState([]);
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -41,6 +44,11 @@ const Scoreboard = ({ selectedPool }) => {
         }
         
         setUsers(selectedPool?.users)
+        const fullyPicked = selectedPool?.users.filter(user => [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(Boolean));
+        const notFullyPicked = selectedPool?.users.filter(user => ![user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(Boolean));
+        const sorted = [...fullyPicked].sort((a, b) => calculateTotalWinnings(b) - calculateTotalWinnings(a));
+        setSortedUsers(sorted);
+        setUnsortedUsers(notFullyPicked);
         const amateurSnapshot = await get(ref(database, 'amateurPlayers'));
         const payoutSnapshot = await get(ref(database, 'payoutPercentages'));
         if (amateurSnapshot.exists()) setAmateurPlayers(Object.values(amateurSnapshot.val()));
@@ -52,6 +60,10 @@ const Scoreboard = ({ selectedPool }) => {
     };
     fetchData();
   }, [refreshScoreboard]);
+
+  useEffect(()=> {
+    console.log("sorted users", sortedUsers)
+  },[sortedUsers, unsortedUsers])
 
   useEffect(() => {
     if (!username) return;
@@ -150,6 +162,7 @@ const Scoreboard = ({ selectedPool }) => {
   };
 
   const calculateTotalScore = useCallback((user) => {
+    // console.log("calculating total score")
     const totalScore = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6]
       .map(pick => {
         const score = pick ? getPlayerScore(pick, true) : 0;
@@ -180,11 +193,13 @@ const Scoreboard = ({ selectedPool }) => {
   };
 
   function calculatePayoutsWrapper() {
+    // console.log("calculating payouts")
     return calculatePayouts(tournament,players,amateurPlayers,payoutPercentages,specialPayout);
   }
     
 
   const calculateTotalWinnings = (user) => {
+    // console.log("calculating total winnings")
     const picks = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6];
   
     // Calculate the total payout by summing up the payouts for each pick
@@ -236,9 +251,10 @@ const Scoreboard = ({ selectedPool }) => {
   };
   
   // Call the function to log golfers' leaderboard and user picks
-  logGolfersLeaderboardAndUsersPicks();
+  // logGolfersLeaderboardAndUsersPicks();
   
   const countPlayerPicks = () => {
+    // console.log("counting player picks")
     const pickCounts = {};
   
     // Count how many different users picked each player
@@ -281,16 +297,10 @@ const Scoreboard = ({ selectedPool }) => {
     return today === 4 || today === 5; // 4 = Thursday, 5 = Friday
   };
 
-  const sortedUsers = [...users]
-  .filter(user => [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(pick => pick))
-  .sort((a, b) => calculateTotalWinnings(b) - calculateTotalWinnings(a)); 
-  
-  const unsortedUsers = [...users]
-  .filter(user => ![user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(pick => pick));
-  
-
   const playerCards = useMemo(() => {
-    if(sortedUsers === undefined || unsortedUsers === undefined || players === undefined) return
+    console.log("rendering player cardss")
+    if(sortedUsers === undefined || unsortedUsers === undefined) return
+
     return [...sortedUsers, ...unsortedUsers].map((user, index) => {
       const totalScore = calculateTotalScore(user);
       const totalWinnings = abbreviateNumber(calculateTotalWinnings(user));
@@ -315,7 +325,7 @@ const Scoreboard = ({ selectedPool }) => {
         />
       );
     });
-  }, [sortedUsers, unsortedUsers, username, secretScoreboard, refreshScoreboard, players, tournament]);
+  }, [sortedUsers, unsortedUsers, players, refreshScoreboard, secretScoreboard, payoutPercentages]);
   
   
   

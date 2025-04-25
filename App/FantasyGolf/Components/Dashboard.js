@@ -60,7 +60,7 @@ const Dashboard = () => {
     const checkStoredUser = async () => {
       const storedUser = await AsyncStorage.getItem('user');
       const isLoggedIn = await AsyncStorage.getItem('username');
-
+      console.log("well, isLoggedIn?", isLoggedIn)
       if (isLoggedIn) {
         setIsLoggedIn(isLoggedIn);
       }
@@ -88,6 +88,7 @@ const Dashboard = () => {
       await AsyncStorage.removeItem('user');
       await signOut(auth);
       setUser(null);
+      setIsLoggedIn(false);
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -107,7 +108,7 @@ const Dashboard = () => {
   }
 
   if (!isLoggedIn) {
-    return <LoginScreen />;
+    return <LoginScreen setIsLoggedIn={setIsLoggedIn}/>;
   }
 
   return (
@@ -193,10 +194,11 @@ const Dashboard = () => {
         >
           <View
             style={{
-              height: scale(300),
-              width: scale(280),
+              height: scale(475),
+              width: scale(300),
               backgroundColor: 'white',
               borderRadius: 20,
+              overflow:'hidden'
             }}
             onStartShouldSetResponder={() => true} // This prevents the modal itself from closing when touched
           >

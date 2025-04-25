@@ -2,7 +2,7 @@
   "expo": {
     "name": "PutterPicks",
     "slug": "PutterPicks",
-    "version": "4.0.0",
+    "version": "4.0.3",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",

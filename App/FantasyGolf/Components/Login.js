@@ -10,7 +10,7 @@ import { useUser } from '../context/UserContext';
 const database = getDatabase(app);
 const auth = getAuth(app);
 
-const LoginScreen = ({ navigation }) => {
+const LoginScreen = ({ navigation, setIsLoggedIn }) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState(''); // New for Firebase Auth
@@ -42,6 +42,7 @@ const LoginScreen = ({ navigation }) => {
       await signInWithEmailAndPassword(auth, email, password);
       console.log("hello 4")
       await AsyncStorage.setItem('username', username);
+      setIsLoggedIn(true);
       console.log("hello", username)
     } catch (error) {
       console.error('Login error:', error);
