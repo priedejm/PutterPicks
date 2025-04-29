@@ -14,7 +14,7 @@ import JoinPool from './JoinPool';
 const tabWidth = scale(300); // YOUR MODAL WIDTH
 const tabs = ['Create', 'Join'];
 
-export default function FilterTabs() {
+export default function FilterTabs({user}) {
   const [activeTab, setActiveTab] = useState(0);
   const translateX = useRef(new Animated.Value(0)).current;
 
@@ -67,7 +67,7 @@ export default function FilterTabs() {
         ]}
       >
         <View style={[styles.page, { width: tabWidth, height: scale(410),  }]}>
-          <CreateScreen/>
+          <CreateScreen user={user}/>
         </View>
         <View style={[{ width: tabWidth, height: scale(410), }]}>
           <JoinPool/>

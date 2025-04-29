@@ -2,7 +2,7 @@
   "expo": {
     "name": "PutterPicks",
     "slug": "PutterPicks",
-    "version": "4.0.3",
+    "version": "4.0.9",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
@@ -30,7 +30,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "8775219d-a9c3-43ee-a6ca-b70b8fc42d78"
+        "projectId": "7a1cbfff-d07e-468a-8edc-691dc71d022f"
       }
     }
   }

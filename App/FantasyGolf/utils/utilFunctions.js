@@ -1,6 +1,15 @@
 export const calculatePayouts = (tournament, players, amateurPlayers, payoutPercentages, specialPayout,) => {
   if (!tournament || !tournament.purse) return [];
-
+  if (!Array.isArray(players) || players.length === 0) return [];
+  if (!Array.isArray(amateurPlayers)) return [];
+  if (!Array.isArray(payoutPercentages) || payoutPercentages.length === 0) return [];
+  if (!specialPayout) return [];
+  // console.log("tournament", tournament)
+  // console.log("players", players?.length)
+  // console.log("amateurPlayers", amateurPlayers)
+  // console.log("payoutPercentages", payoutPercentages)
+  // console.log("specialPayout", specialPayout)
+  
   // Filter players who are not amateurs and have a valid position and score
   const playersPaid = players.filter(
     (player) =>

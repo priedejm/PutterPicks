@@ -62,11 +62,40 @@ export const updateUsersSeasonWinnings = async (users, poolName) => {
 
 
 // Reset picks and update pickHistory and their counts
-export const resetUserPicks = async (users) => {
+export const resetUserPicks = async (users, poolName) => {
   const db = getDatabase();
+
   try {
-    for (const key of Object.keys(users)) {
-      const user = users[key];
+    const snapshot = await get(ref(db));
+    if (!snapshot.exists()) return;
+
+    const data = snapshot.val();
+    const poolsObj = data.pools;
+
+    if (!poolsObj) return;
+
+    const poolEntries = Object.entries(poolsObj); // [ [key, pool], ... ]
+
+    // Find the pool entry by name
+    const [poolKey, pool] = poolEntries.find(
+      ([_, pool]) => pool.name === poolName
+    ) || [];
+
+    if (!pool || !pool.users) {
+      console.error(`Pool or users not found for poolName: ${poolName}`);
+      return;
+    }
+
+    const poolUsers = pool.users;
+
+    for (const key of Object.keys(poolUsers)) {
+      const user = poolUsers[key];
+
+      // Only reset for users provided
+      if (!users.some(u => u.username === user.username)) {
+        continue;
+      }
+
       const picks = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6];
 
       picks.forEach((pick) => {
@@ -80,7 +109,7 @@ export const resetUserPicks = async (users) => {
         }
       });
 
-      const userRef = ref(db, `users/${key}`);
+      const userRef = ref(db, `pools/${poolKey}/users/${key}`);
       await update(userRef, {
         pick1: "",
         pick2: "",
@@ -93,10 +122,11 @@ export const resetUserPicks = async (users) => {
         pickHistory: user.pickHistory,
       });
 
-      //console.log(`Updated pickHistory for user: ${user.username}`);
+      // console.log(`Reset picks and updated pickHistory for user: ${user.username}`);
     }
+
   } catch (error) {
-    console.error("Error updating pickHistory:", error);
+    console.error("Error resetting user picks:", error);
   }
 };
 

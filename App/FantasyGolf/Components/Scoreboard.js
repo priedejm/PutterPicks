@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { StyleSheet, Text, View, ScrollView, Platform, Image, } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Platform, Image, TouchableOpacity, } from 'react-native';
 import { getDatabase, ref, get, onValue } from 'firebase/database';
 import { app } from '../config';
 import LoginScreen from './Login';
@@ -10,13 +10,24 @@ import SeasonLeaderboard from './SeasonLeaderboard';
 import { MaterialIcons } from '@expo/vector-icons';  // For the checkmark icon
 import PlayerCard from './PlayerCard';
 import { calculatePayouts } from '../utils/utilFunctions';
+import { useNavigation } from '@react-navigation/native';
+import { Dimensions } from 'react-native';
+import { scale } from 'react-native-size-matters';
+
+
+const screenWidth = Dimensions.get('window').width;
+const screenHeight = Dimensions.get('window').height;
+
 
 
 const isIos = Platform.OS === 'ios';
 const database = getDatabase(app);
 
-const Scoreboard = ({ selectedPool }) => {
-  const { refreshScoreboard, isLoggedIn } = useUser();
+const Scoreboard = () => {
+  const navigation = useNavigation();
+  const { refreshScoreboard, selectedPool } = useUser();
+  const [, updateState] = React.useState();
+  const forceUpdate = React.useCallback(() => updateState({}), []);
   const latestTournament = selectedPool.tournaments[selectedPool.tournaments.length - 1];
 
   const [users, setUsers] = useState([]);
@@ -32,38 +43,19 @@ const Scoreboard = ({ selectedPool }) => {
   const [showProjectedCut, setShowProjectedCut] = useState(false);
   const [sortedUsers, setSortedUsers] = useState([]);
   const [unsortedUsers, setUnsortedUsers] = useState([]);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const storedUsername = await AsyncStorage.getItem('username');
-        if (storedUsername && selectedPool?.users) {
-          setUsername(storedUsername);
-          const matchedUser = selectedPool.users.find(user => user.username === storedUsername);
-        }
-        
-        setUsers(selectedPool?.users)
-        const fullyPicked = selectedPool?.users.filter(user => [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(Boolean));
-        const notFullyPicked = selectedPool?.users.filter(user => ![user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(Boolean));
-        const sorted = [...fullyPicked].sort((a, b) => calculateTotalWinnings(b) - calculateTotalWinnings(a));
-        setSortedUsers(sorted);
-        setUnsortedUsers(notFullyPicked);
-        const amateurSnapshot = await get(ref(database, 'amateurPlayers'));
-        const payoutSnapshot = await get(ref(database, 'payoutPercentages'));
-        if (amateurSnapshot.exists()) setAmateurPlayers(Object.values(amateurSnapshot.val()));
-        if (payoutSnapshot.exists()) setPayoutPercentages(Object.values(payoutSnapshot.val()));
-
-      } catch (error) {
-        console.error("Error fetching data:", error);
+    const grabUsername = async () => {
+      const storedUsername = await AsyncStorage.getItem('username');
+      if (storedUsername) {
+        setIsLoggedIn(true);
       }
     };
-    fetchData();
-  }, [refreshScoreboard]);
+    grabUsername();
+  }, []);
 
-  useEffect(()=> {
-    console.log("sorted users", sortedUsers)
-  },[sortedUsers, unsortedUsers])
 
   useEffect(() => {
     if (!username) return;
@@ -81,6 +73,54 @@ const Scoreboard = ({ selectedPool }) => {
     };
   }, [username, refreshScoreboard]);
   
+
+  useEffect(() => {
+    if(players?.length < 1) return;
+    console.log("whats this look like now", selectedPool)
+    const fetchData = async () => {
+      try {
+        const storedUsername = await AsyncStorage.getItem('username');
+        if (storedUsername && selectedPool?.users) {
+          setUsername(storedUsername);
+          const matchedUser = selectedPool.users.find(user => user.username === storedUsername);
+        }
+        
+        setUsers(selectedPool?.users)
+        const amateurSnapshot = await get(ref(database, 'amateurPlayers'));
+        const payoutSnapshot = await get(ref(database, 'payoutPercentages'));
+        if (amateurSnapshot.exists()) setAmateurPlayers(Object.values(amateurSnapshot.val()));
+        if (payoutSnapshot.exists()) setPayoutPercentages(Object.values(payoutSnapshot.val()));
+
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
+    fetchData();
+  }, [ players, selectedPool]);
+
+  useEffect(()=> {
+    if (!tournament || !tournament.purse) return;
+    if (!Array.isArray(players) || players.length === 0) return;
+    if (!Array.isArray(amateurPlayers)) return;
+    if (!Array.isArray(payoutPercentages) || payoutPercentages.length === 0) return;
+    if (!specialPayout) return;
+    const fullyPicked = users.filter(user => [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(Boolean));
+    const notFullyPicked = users.filter(user => ![user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(Boolean));
+    console.log("fullyPicked", fullyPicked)
+    console.log("notFullyPicked", notFullyPicked)
+    const results = fullyPicked.map(user => {
+      const winnings = calculateTotalWinnings(user);
+      console.log(`User: ${user.username || user.id} | Winnings: ${winnings}`);
+      return { user, winnings };
+    });
+    console.log("what are the results", results)
+    const sorted = results.sort((a, b) => b.winnings - a.winnings);
+
+     console.log("what are the sorted", sorted)
+    setSortedUsers(sorted)
+    setUnsortedUsers(notFullyPicked);
+    console.log("each part of sorted iss", sorted)
+  },[users, tournament, players, amateurPlayers, payoutPercentages, specialPayout, refreshScoreboard]);
 
   useEffect(() => {
     const secretRef = ref(database, 'featureflags/secretScoreboard');
@@ -163,6 +203,7 @@ const Scoreboard = ({ selectedPool }) => {
 
   const calculateTotalScore = useCallback((user) => {
     // console.log("calculating total score")
+    console.log("whats the user like", user)
     const totalScore = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6]
       .map(pick => {
         const score = pick ? getPlayerScore(pick, true) : 0;
@@ -298,12 +339,11 @@ const Scoreboard = ({ selectedPool }) => {
   };
 
   const playerCards = useMemo(() => {
-    console.log("rendering player cardss")
-    if(sortedUsers === undefined || unsortedUsers === undefined) return
-
-    return [...sortedUsers, ...unsortedUsers].map((user, index) => {
+    if(sortedUsers === undefined || unsortedUsers === undefined || (unsortedUsers?.length < 1 && sortedUsers?.length < 1)) return
+    return [...sortedUsers, ...unsortedUsers].map((userObject, index) => {
+      const user = userObject.user || userObject;
       const totalScore = calculateTotalScore(user);
-      const totalWinnings = abbreviateNumber(calculateTotalWinnings(user));
+      const totalWinnings = abbreviateNumber(user?.winnings || calculateTotalWinnings(user));
       const isLoggedInUser = username === user.username;
       const allPicksChosen = [user.pick1, user.pick2, user.pick3, user.pick4, user.pick5, user.pick6].every(pick => pick);
       return (
@@ -325,7 +365,7 @@ const Scoreboard = ({ selectedPool }) => {
         />
       );
     });
-  }, [sortedUsers, unsortedUsers, players, refreshScoreboard, secretScoreboard, payoutPercentages]);
+  }, [sortedUsers, unsortedUsers, players, selectedPool,  secretScoreboard, payoutPercentages]);
   
   
   
@@ -341,11 +381,26 @@ const Scoreboard = ({ selectedPool }) => {
   }
   
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView 
+        style={{backgroundColor: '#305115'}}
+        horizontal={false}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContainer}
+        bounces={false} // optional: prevents rubberband scrolling horizontally
+        contentInsetAdjustmentBehavior="never"
+      >
       <View style={{flex: 1, marginTop: 50, alignItems: 'center'}}>
-        <View style={{marginBottom: 20}}>
-           <Slider onSelectTournamentScoreboard={() => setActive(true)}  onSelectSeasonalScoreboard={() => setActive(false)} active={active}/>
+
+      <View style={{ marginBottom: 20, flexDirection: 'row', alignItems: 'center',  width: screenWidth, justifyContent: "center" }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', position: 'absolute', left: scale(15) }}>
+          <TouchableOpacity onPress={() => navigation.popToTop()} style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ fontSize: scale(11), marginRight: 5, color: 'white' }}>{'\u25C0'}</Text> 
+            <Text style={{ fontSize: scale(11), color: 'white' }}>Home</Text>
+          </TouchableOpacity>
         </View>
+      </View>
+
+
         {(tournament && active) && (
           <View style={styles.tournamentHeader}>
             <Text style={styles.tournamentName}>{tournament.name}</Text>
@@ -355,6 +410,9 @@ const Scoreboard = ({ selectedPool }) => {
             {showProjectedCut && <Text style={styles.tournamentDetails}>Projected Cut: {cutLine}</Text>}
           </View>
         )}
+        <View style={{marginBottom: scale(15)}}>
+          <Slider onSelectTournamentScoreboard={() => setActive(true)} onSelectSeasonalScoreboard={() => setActive(false)} active={active} />
+        </View>
         {/* Top 3 Players with Percentages */}
         {(active && !secretScoreboard)&&
         <View style={styles.topPlayersContainer}>
@@ -378,12 +436,17 @@ const Scoreboard = ({ selectedPool }) => {
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
+    flex: 1,  // <- IMPORTANT
     backgroundColor: '#305115',
     paddingVertical: 10,
     alignItems: 'center',
-    height: isIos ? undefined : 1, // Ensures proper scrolling behavior on the web
-    marginBottom: 50,
+    justifyContent: 'center',
+  },
+  scrollContainer: {
+    width: '100%', // <- FULL WIDTH
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scoreboardContainer: {
     width: 375,

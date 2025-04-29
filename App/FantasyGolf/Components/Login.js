@@ -39,9 +39,14 @@ const LoginScreen = ({ navigation, setIsLoggedIn }) => {
       }
       console.log("hello 3")
       const email = emailSnap.val();
-      await signInWithEmailAndPassword(auth, email, password);
-      console.log("hello 4")
+      const resp = await signInWithEmailAndPassword(auth, email, password);
+      console.log("user in here?", resp.user)
+
       await AsyncStorage.setItem('username', username);
+
+      const userToSet = {username: username, email: email};
+      console.log("hello 4", userToSet)
+      await AsyncStorage.setItem('user',  JSON.stringify(userToSet));
       setIsLoggedIn(true);
       console.log("hello", username)
     } catch (error) {

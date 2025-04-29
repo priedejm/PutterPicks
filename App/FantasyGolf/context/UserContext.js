@@ -10,6 +10,7 @@ export const useUser = () => {
 export const UserProvider = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [refreshScoreboard, setRefreshScoreboard] = useState(false);
+  const [selectedPool, setSelectedPool] = useState();
 
   useEffect(() => {
     const checkUserLoggedIn = async () => {
@@ -36,7 +37,15 @@ export const UserProvider = ({ children }) => {
   };
 
   return (
-    <UserContext.Provider value={{ isLoggedIn, login, logout, refreshScoreboard, triggerScoreboardRefresh }}>
+    <UserContext.Provider value={{
+      isLoggedIn,
+      login,
+      logout,
+      refreshScoreboard,
+      triggerScoreboardRefresh,
+      selectedPool,
+      setSelectedPool, // <-- just pass it in here!
+    }}>
       {children}
     </UserContext.Provider>
   );

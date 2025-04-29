@@ -15,7 +15,8 @@ import warnings
 warnings.filterwarnings("ignore", category=UserWarning, message=".*resource_tracker.*")
 
 # Initialize Firebase with the config
-firebase = firebase.FirebaseApplication('https://fantasygolf-22bac-default-rtdb.firebaseio.com', None)
+firebase_fantasygolf = firebase.FirebaseApplication('https://fantasygolf-22bac-default-rtdb.firebaseio.com', None)
+firebase_putterpicks = firebase.FirebaseApplication('https://putterpicks-default-rtdb.firebaseio.com', None)
 
 def save_screenshot(driver, error_message):
     """Saves a screenshot with a unique name based on the current timestamp."""
@@ -133,7 +134,8 @@ def fetchLeaderboard():
             print("❌ No player data found.")
 
         # Replace the entire players list in Firebase Realtime Database
-        firebase.put('/players', 'players', player_data)
+        firebase_fantasygolf.put('/players', 'players', player_data)
+        firebase_putterpicks.put('/players', 'players', player_data)
         
     except Exception as e:
         print("❌ Unexpected error:", e)

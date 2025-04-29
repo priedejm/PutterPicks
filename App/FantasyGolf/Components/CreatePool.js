@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { scale } from 'react-native-size-matters';
+import { getDatabase, ref, push } from 'firebase/database';
+import { app } from '../config';
 
-export default function CreateScreen() {
+export default function CreateScreen({user}) {
   const [step, setStep] = useState(1);
   const [poolName, setPoolName] = useState('');
   const [gameMode, setGameMode] = useState('season');
@@ -16,10 +18,10 @@ export default function CreateScreen() {
   // State for majors settings
   const [rosterFormat, setRosterFormat] = useState('tiered');
   const [selectedMajors, setSelectedMajors] = useState({
-    Masters: false,
-    PGA: false,
-    USOpen: false,
     BritishOpen: false,
+    USOpen: false,
+    PGA: false,
+    Masters: false,
   });
 
   const handleNext = () => {
@@ -38,21 +40,79 @@ export default function CreateScreen() {
     if (value === 'unlimited') return 'Unlmited';
     return value;
   };
-  
-  
 
-  const handleFinalSubmit = () => {
-    const payload = {
-      poolName,
-      gameMode,
-      settings: gameMode === 'season'
-        ? { golfersPicked, playerUseLimit }
-        : { rosterFormat, selectedMajors },
-    };
-
-    // Replace this with your DB submission function
-    Alert.alert('Pool Created!', JSON.stringify(payload, null, 2));
+  const handleFinalSubmit = async () => {
+    try {
+      console.log("submittedMajors are?", selectedMajors);
+      console.log("this the user", user);
+      if (!user) {
+        Alert.alert('Error', 'No user is signed in.');
+        return;
+      }
+  
+      const currentYear = new Date().getFullYear();
+  
+      // Build tournaments with entries inside each one
+      const tournaments = Object.entries(selectedMajors)
+        .filter(([major, isSelected]) => isSelected)
+        .map(([major]) => ({
+          name: major,
+          purse: 20000000,
+          year: currentYear,
+          entries: [
+            {
+              pick1: "",
+              pick2: "",
+              pick3: "",
+              pick4: "",
+              pick5: "",
+              pick6: "",
+              alt1: "",
+              alt2: "",
+              username: user.username || 'Anonymous',
+            }
+          ]
+        }));
+  
+      const userObject = {
+        email: user.email,
+        username: user.username || 'Anonymous',
+        pick1: "",
+        pick2: "",
+        pick3: "",
+        pick4: "",
+        pick5: "",
+        pick6: "",
+        alt1: "",
+        alt2: "",
+        seasonWinnings: 0,
+        pickHistory: []
+      };
+  
+      const payload = {
+        name: poolName,
+        mode: gameMode === 'season' ? 'Season Long League' : 'Majors Only',
+        settings: gameMode === 'season'
+          ? { golfersPicked, playerUseLimit }
+          : { rosterFormat },
+        tournaments: gameMode === 'season' ? [] : tournaments,
+        users: [userObject]
+      };
+  
+      const db = getDatabase(app);
+      const poolsRef = ref(db, 'pools');
+  
+      await push(poolsRef, payload);
+  
+      Alert.alert('Success', 'Pool created successfully!');
+    } catch (error) {
+      console.error('Error creating pool:', error);
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    }
   };
+  
+  
+  
 
   return (
     <View style={styles.container}>

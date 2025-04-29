@@ -11,6 +11,7 @@ import {
   Modal,
 } from 'react-native';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+import { onValue } from 'firebase/database'; // make sure you import onValue
 import { getDatabase, get, ref } from 'firebase/database';
 import { app } from '../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -19,6 +20,7 @@ import { scale } from 'react-native-size-matters';
 import LoginScreen from './Login';
 import FilterTabs from './FilterTabs';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useUser } from '../context/UserContext'; // Import the UserContext
 
 const golfImages = [
   require('../assets/StockImages/golf1.jpg'),
@@ -34,6 +36,7 @@ const auth = getAuth(app);
 
 const Dashboard = () => {
   const navigation = useNavigation();
+  const { selectedPool, setSelectedPool} = useUser();
   const [user, setUser] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [pools, setPools] = useState(null);
@@ -41,46 +44,71 @@ const Dashboard = () => {
   const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
-    const fetchPools = async () => {
-      const poolsSnapshot = await get(ref(database, 'pools'));
-      const tournamentData = Object.values(poolsSnapshot.val());
-
-      const poolsWithImages = tournamentData.map(pool => ({
-        ...pool,
-        image: golfImages[Math.floor(Math.random() * golfImages.length)],
-      }));
-
-      setPools(poolsWithImages);
-    };
-
-    fetchPools();
+    const poolsRef = ref(database, 'pools');
+  
+    const unsubscribe = onValue(poolsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const tournamentData = Object.values(snapshot.val());
+        const poolsWithImages = tournamentData.map(pool => ({
+          ...pool,
+          image: getNextImage(),
+        }));
+        setPools(poolsWithImages);
+      } else {
+        setPools([]); // no pools
+      }
+    });
+  
+    return () => unsubscribe();
   }, []);
+  
 
   useEffect(() => {
     const checkStoredUser = async () => {
       const storedUser = await AsyncStorage.getItem('user');
-      const isLoggedIn = await AsyncStorage.getItem('username');
-      console.log("well, isLoggedIn?", isLoggedIn)
-      if (isLoggedIn) {
-        setIsLoggedIn(isLoggedIn);
+      // const isLoggedIn = await AsyncStorage.getItem('username');
+      // console.log("well, isLoggedIn?", isLoggedIn)
+      console.log("storedUser uusssss", storedUser)
+      if (storedUser) {
+        setIsLoggedIn(true);
+        setUser(JSON.parse(storedUser));
       }
       setLoading(false);
     };
 
     checkStoredUser();
 
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        await AsyncStorage.setItem('user', JSON.stringify(currentUser));
-      } else {
-        await AsyncStorage.removeItem('user');
-        setUser(null);
-      }
-    });
+    // const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    //   if (currentUser) {
+    //     console.log("in here now")
+    //     setUser(currentUser);
+    //     await AsyncStorage.setItem('user', JSON.stringify(currentUser));
+    //   } else {
+    //     console.log("not in here")
+    //     await AsyncStorage.removeItem('user');
+    //     setUser(null);
+    //   }
+    // });
+  }, [isLoggedIn]);
 
-    return () => unsubscribe();
-  }, []);
+  const shuffleArray = (array) => {
+    const newArr = [...array];
+    for (let i = newArr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+    }
+    return newArr;
+  };
+  
+  let imageQueue = shuffleArray(golfImages);
+  
+  const getNextImage = () => {
+    if (imageQueue.length === 0) {
+      imageQueue = shuffleArray(golfImages);
+    }
+    return imageQueue.pop();
+  };
+  
 
   const handleLogout = async () => {
     try {
@@ -110,7 +138,7 @@ const Dashboard = () => {
   if (!isLoggedIn) {
     return <LoginScreen setIsLoggedIn={setIsLoggedIn}/>;
   }
-
+  console.log("user is", user)
   return (
     <View style={styles.flexContainer}>
       <ScrollView style={styles.container}>
@@ -124,13 +152,17 @@ const Dashboard = () => {
         <View style={styles.divider} />
 
         <Text style={{ fontSize: scale(24), paddingLeft: scale(20), color: 'white', marginBottom: scale(10) }}>Active Pools</Text>
-        {pools?.map((pool, index) => {
-          console.log("uh sorry?", pool)
-          const latestTournament = pool.tournaments[pool.tournaments.length - 1];
+        {pools
+          ?.filter((pool) => 
+            pool.users?.some((u) => u.username === user?.username)
+          )
+          .map((pool, index) => {
+
+          const latestTournament = pool.tournaments?.length ? pool.tournaments[pool.tournaments.length - 1] : null;
           return (
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={() => navigation.navigate('Main', { selectedPool: pool })}
+              onPress={() => {navigation.navigate('Main'); setSelectedPool(pool)}}
 
               key={index}
               style={{ backgroundColor: 'white', padding: 10, width: scale(310), height: scale(200), alignSelf: 'center', borderRadius: scale(5), overflow: 'hidden', marginBottom: scale(20),}}
@@ -157,15 +189,16 @@ const Dashboard = () => {
                   </Text>
                 </View>
 
+                {latestTournament && 
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: scale(4) }}>
                   <Text style={{ fontSize: scale(14), marginRight: scale(5) }}>🏆</Text>
-                  <Text style={{ color: 'white', fontSize: scale(14) }}>{latestTournament.name}</Text>
-                </View>
-
+                  <Text style={{ color: 'white', fontSize: scale(14) }}>{latestTournament?.name}</Text>
+                </View>}
+                {latestTournament && 
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: scale(4) }}>
                   <Text style={{ fontSize: scale(14), marginRight: scale(5) }}>💰</Text>
-                  <Text style={{ color: 'white', fontSize: scale(14) }}>{formatCurrency(latestTournament.purse)}</Text>
-                </View>
+                  <Text style={{ color: 'white', fontSize: scale(14) }}>{formatCurrency(latestTournament?.purse)}</Text>
+                </View>}
               </View>
             </TouchableOpacity>
           );
@@ -202,7 +235,7 @@ const Dashboard = () => {
             }}
             onStartShouldSetResponder={() => true} // This prevents the modal itself from closing when touched
           >
-            <FilterTabs />
+            <FilterTabs user={user}/>
           </View>
         </TouchableOpacity>
       </Modal>

@@ -9,6 +9,7 @@ import Login from './Components/Login';
 import Scoreboard from './Components/Scoreboard';
 import Leaderboard from './Components/Leaderboard';
 import PlayerPicks from './Components/PlayerPicks';
+import SeasonLongLeaderboard from './Components/GameModes/SeasonLongLeaderboard';
 import { UserProvider } from './context/UserContext';
 import Dashboard from './Components/Dashboard';
 
@@ -78,6 +79,8 @@ export default function App() {
 
           {/* Bottom tabs appear after this point */}
           <Stack.Screen name="Main" component={BottomTabs} />
+          
+          <Stack.Screen name="SeasonLongLeaderboard" component={SeasonLongLeaderboard} />
         </Stack.Navigator>
       </NavigationContainer>
     </UserProvider>

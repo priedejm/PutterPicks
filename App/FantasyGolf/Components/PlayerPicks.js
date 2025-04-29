@@ -5,30 +5,16 @@ import { app } from '../config';
 import { useUser } from '../context/UserContext';
 import LoginScreen from './Login';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import SeasonLongPlayerPicks from './GameModes/SeasonLongPlayerPicks';
+import MajorsOnlyPlayerPicks from './GameModes/MajorsOnlyPlayerPicks';
 
 const isIos = Platform.OS === 'ios';
 const database = getDatabase(app);
 
-const PlayerPicks = ({selectedPool}) => {
-  const { isLoggedIn, logout, triggerScoreboardRefresh } = useUser();
+const PlayerPicks = () => {
+  const { triggerScoreboardRefresh, selectedPool, setSelectedPool } = useUser();
+  const [lockedPicks, setLockedPicks] = useState(null);
   const [players, setPlayers] = useState([]);
-  const [selectedPlayers, setSelectedPlayers] = useState(["", "", "", "", "", "", "", ""]); // Now 8 selectors
-  const [currentlySelecting, setCurrentlySelecting] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [username, setUsername] = useState('');
-  const [pastPicksVisible, setPastPicksVisible] = useState(false);
-  const [userPicks, setUserPicks] = useState([]);
-  const [lockedPicks, setLockedPicks] = useState(false);
-
-  useEffect(() => {
-    const grabUsername = async () => {
-      const storedUsername = await AsyncStorage.getItem('username');
-      if (storedUsername) {
-        setUsername(storedUsername);
-      }
-    };
-    grabUsername();
-  }, [isLoggedIn]);
 
   useEffect(() => {
     const lockedPicksRef = ref(database, 'featureflags/lockedPicks');
@@ -42,7 +28,7 @@ const PlayerPicks = ({selectedPool}) => {
     return () => {
       listener(); // Unsubscribe from the listener
     };
-  }, [isLoggedIn]);
+  }, []);
 
   useEffect(() => {
     const playersRef = ref(database, 'players/players');
@@ -55,248 +41,13 @@ const PlayerPicks = ({selectedPool}) => {
     }).catch((error) => {
       console.error(error);
     });
-  }, [isLoggedIn]);
-
-  useEffect(() => {
-    if (username) {
-      const user = Object.values(selectedPool?.users).find(u => u.username === username);
-      console.log("is this a user", user)
-      if (user) {
-        const userPicks = [
-          user.pick1, 
-          user.pick2, 
-          user.pick3, 
-          user.pick4, 
-          user.pick5, 
-          user.pick6,
-          user.alt1,  // Added alt1
-          user.alt2   // Added alt2
-        ];
-        setSelectedPlayers(userPicks); 
-      }
-    }
-  }, [username, isLoggedIn]);
-
-  useEffect(() => {
-    const currentUser = Object.values(selectedPool?.users).find(u => u.username === username);
-    if (currentUser) {
-      const pickHistory = currentUser.pickHistory;
-      setUserPicks(pickHistory);
-    }
-  }, [username, isLoggedIn]);
-
-  const handleSelectPlayer = (index, playerName) => {
-    if (lockedPicks) {
-      alert('Picks are locked!');
-      return; // Prevent player selection
-    }
-  
-    const updatedPlayers = [...selectedPlayers];
-    updatedPlayers[index] = playerName;
-    setSelectedPlayers(updatedPlayers);
-    setCurrentlySelecting(null);
-  
-    setUserPicks((prevPicks) => {
-      const newPickHistory = prevPicks.map((pick) => {
-        if (pick.player === playerName) {
-          return { ...pick, used: pick.used + 1 };
-        }
-        return pick;
-      });
-      return newPickHistory;
-    });
-  };
-
-  const handleRemovePlayer = (index) => {
-    const updatedPlayers = [...selectedPlayers];
-    updatedPlayers[index] = "";
-    setSelectedPlayers(updatedPlayers);
-
-    setUserPicks((prevPicks) => {
-      const newPickHistory = prevPicks.map((pick) => {
-        if (pick.player === selectedPlayers[index]) {
-          return { ...pick, used: pick.used - 1 };
-        }
-        return pick;
-      });
-      return newPickHistory;
-    });
-  };
-
-  const isSaveButtonEnabled = selectedPlayers.every((player) => player !== "");
-
-  const filteredPlayers = players.filter(player =>
-    player.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const handleSave = () => {
-    if (username) {
-      const usersRef = ref(database, 'users');
-      get(usersRef).then((snapshot) => {
-        if (snapshot.exists()) {
-          const usersData = snapshot.val();
-          const userIndex = Object.values(usersData).findIndex(u => u.username === username);
-          if (userIndex !== -1) {
-            const updatedUser = {
-              ...usersData[userIndex],
-              pick1: selectedPlayers[0], 
-              pick2: selectedPlayers[1], 
-              pick3: selectedPlayers[2], 
-              pick4: selectedPlayers[3], 
-              pick5: selectedPlayers[4], 
-              pick6: selectedPlayers[5],
-              alt1: selectedPlayers[6], // Save alt1
-              alt2: selectedPlayers[7]  // Save alt2
-            };
-
-            const updatedUsers = [...Object.values(usersData)];
-            updatedUsers[userIndex] = updatedUser;
-
-            const updates = {};
-            updates['/users'] = updatedUsers;
-            update(ref(database), updates)
-              .then(() => {
-                alert('Picks saved successfully!');
-                triggerScoreboardRefresh(); // Trigger refresh after saving picks
-              })
-              .catch((error) => {
-                console.error('Error saving picks: ', error);
-                alert('Failed to save picks.');
-              });
-          }
-        }
-      }).catch((error) => {
-        console.error(error);
-      });
-    }
-  };
-
-  if (!isLoggedIn) {
-    return <LoginScreen />;
-  }
+  }, []);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={{flex: 1, top: 50, alignItems: 'center'}}>
-        <TouchableOpacity onPress={logout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.pastPicksButton}
-          onPress={() => setPastPicksVisible(!pastPicksVisible)}
-        >
-          <Text style={styles.pastPicksButtonText}>Past Picks</Text>
-        </TouchableOpacity>
-
-        <Modal
-          visible={pastPicksVisible}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setPastPicksVisible(false)}
-          style={{ alignItems: 'center' }}
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.pastPicksContainer}>
-              <ScrollView>
-                {userPicks
-                  .sort((a, b) => b.used - a.used)
-                  .map((pick, index) => (
-                    <View key={index} style={styles.pastPickCard}>
-                      <Text style={styles.pastPickPlayer}>{pick.player}</Text>
-                      <Text style={styles.pastPickCount}>Picked {pick.used} times</Text>
-                    </View>
-                  ))}
-              </ScrollView>
-            </View>
-
-            <TouchableOpacity
-              style={styles.closeModalButton}
-              onPress={() => setPastPicksVisible(false)}
-            >
-              <Text style={styles.closeModalText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </Modal>
-
-        <View style={styles.content}>
-          <Text style={styles.title}>Pick Your Players</Text>
-
-          <View style={styles.inputGrid}>
-          {selectedPlayers.map((player, index) => (
-            <View key={index} style={styles.inputContainer}>
-              <TouchableOpacity
-                style={[styles.input, currentlySelecting === index && styles.selectedInput]}
-                onPress={() => {
-                  if (lockedPicks) {
-                    alert('Picks are locked!');
-                  } else {
-                    setCurrentlySelecting(index);
-                  }
-                }}
-              >
-                <Text style={styles.inputText} numberOfLines={1}>
-                  {player || (currentlySelecting === index ? 'Selecting...' : (index < 6 ? 'Pick ' + (index + 1) : index === 6 ? 'Alternate 1' : 'Alternate 2'))}
-                </Text>
-              </TouchableOpacity>       
-
-              {player && (
-                <TouchableOpacity
-                  style={styles.removeButton}
-                  onPress={() => handleRemovePlayer(index)}
-                >
-                  <Text style={styles.removeButtonText}>X</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ))}
-          </View>
-
-          <TextInput
-            style={styles.searchBar}
-            placeholder="Search for a player"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-
-          {currentlySelecting !== null && (
-            <ScrollView contentContainerStyle={styles.playerList}>
-              {filteredPlayers.map((player, index) => {
-                const pickCount = userPicks.find(pick => pick.player === player.name)?.used || 0;
-                const isDisabled = pickCount >= 4; // Disable if player picked 4 times
-
-                return (
-                  <View style={styles.playerCard} key={index}>
-                    <Text style={styles.playerName}>{player.name}</Text>
-                    <TouchableOpacity
-                      style={[styles.selectButton, isDisabled && styles.selectButtonDisabled]}
-                      onPress={() => !isDisabled && handleSelectPlayer(currentlySelecting, player.name)}
-                      disabled={isDisabled} // Disable button if player picked 4 times
-                    >
-                      <Text style={styles.selectButtonText}>
-                        Select {pickCount > 0 && `(${pickCount})`}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
-            </ScrollView>
-          )}
-
-          <TouchableOpacity
-            style={[styles.saveButton, !isSaveButtonEnabled && styles.saveButtonDisabled]}
-            onPress={handleSave}
-            disabled={!isSaveButtonEnabled}
-          >
-            <Text
-              style={[styles.saveButtonText, !isSaveButtonEnabled && styles.saveButtonTextDisabled]}
-            >
-              Save
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </ScrollView>
+    <View style={styles.container}>
+      {selectedPool.mode === "Season Long League" ? <SeasonLongPlayerPicks players={players} lockedPicks={lockedPicks}/> : 
+       selectedPool.mode === "Majors Only" ? <MajorsOnlyPlayerPicks players={players} lockedPicks={lockedPicks}/> : null}
+    </View>
   );
 };
 
@@ -305,8 +56,6 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     backgroundColor: '#305115',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
     height: isIos ? undefined : 1, // Ensures proper scrolling behavior on the web
 
   },
