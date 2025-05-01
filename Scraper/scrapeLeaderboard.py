@@ -42,13 +42,13 @@ def fetchLeaderboard():
     chrome_options.add_experimental_option('useAutomationExtension', False)
 
 
-    # chrome_options.binary_location = "/usr/bin/chromium-browser"  # Point to Chromium
-    # service = Service("/usr/bin/chromedriver")  
-    # driver = webdriver.Chrome(service=service, options=chrome_options)
+    chrome_options.binary_location = "/usr/bin/chromium-browser"  # Point to Chromium
+    service = Service("/usr/bin/chromedriver")  
+    driver = webdriver.Chrome(service=service, options=chrome_options)
 
     # Automatically download and set up Chrome and ChromeDriver using webdriver_manager
-    driver_path = ChromeDriverManager().install()  # This will download ChromeDriver and set the path
-    driver = webdriver.Chrome(service=Service(driver_path), options=chrome_options)
+    # driver_path = ChromeDriverManager().install()  # This will download ChromeDriver and set the path
+    # driver = webdriver.Chrome(service=Service(driver_path), options=chrome_options)
     driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
         "source": """
             Object.defineProperty(navigator, 'webdriver', {
@@ -66,6 +66,7 @@ def fetchLeaderboard():
 
         for player_row in soup.find_all('tr', class_='css-1qtrmek'):
             player = {}
+            # print("this the player row", player_row)
             try:
                 # Extract Position
                 position_td = player_row.find('td', class_='css-11dj2vk')
@@ -86,6 +87,9 @@ def fetchLeaderboard():
                 # Extract Round Score
                 round_td = player_row.find_all('td', class_='css-139kpds')[4] if len(player_row.find_all('td', class_='css-139kpds')) > 2 else None
                 player['round'] = round_td.text.strip() if round_td else "N/A"
+
+                odds_span = player_row.find('span', class_='chakra-text css-107ooji')
+                player['odds_to_win'] = odds_span.text.strip() if odds_span else "N/A"
 
                 # Extract Country (using string search and slicing to get country code)
                 # Convert player_row to string
@@ -128,6 +132,7 @@ def fetchLeaderboard():
                 print(f"Score: {player['score']}")
                 print(f"Thru Status: {player['thru_status']}")
                 print(f"Round Score: {player['round']}")
+                print(f"Odds: {player['odds_to_win']}")
                 print(f"Country: {player['country']}")
                 print("-" * 50)  # Just a separator for readability
         else:
