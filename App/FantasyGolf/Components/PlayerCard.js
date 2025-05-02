@@ -51,11 +51,6 @@ const PlayerCard = ({ index, personalCard, user, calculatePayouts, totalScore, t
   return (
     <View style={{ width: '100%', backgroundColor: '#305115' }}>
       <View style={styles.playerCard}>
-        <View style={styles.headerRow}>
-          {!personalCard && <Text style={styles.position}>Pos</Text>}
-          <Text style={styles.playerName}></Text>
-          <Text style={styles.totalScore}>Total</Text>
-        </View>
         <View style={[styles.row, {marginBottom: isLargeScreen ? 10 : scale(8)}]}>
         {!personalCard &&<Text style={styles.position}>{index + 1}</Text>}
           <Text style={styles.playerName}>{personalCard ? 'Yo bitchass is ' + userRank : user.username}</Text>
@@ -135,11 +130,11 @@ container: {
     height: isIos ? undefined : 1, // Ensures proper scrolling behavior on the web
   },
   playerCard: {
-    width: '320@s', // Widened card
+    width: '330@s', // Widened card
     padding: '8@s',
     marginBottom: '15@s',
     backgroundColor: '#fff',
-    borderRadius: 10,
+    borderRadius: scale(5),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -166,8 +161,7 @@ container: {
     color: '#305115',
     width: '40%',
     textAlign: 'center',
-    bottom: '17@s'
-
+    marginBottom: '10@s',
   },
   totalScore: {
     fontSize: '15@s',

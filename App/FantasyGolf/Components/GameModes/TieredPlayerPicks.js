@@ -1,22 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Platform, Modal } from 'react-native';
-import { getDatabase, ref, get, onValue, update } from 'firebase/database';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  ScrollView,
+  Platform
+} from 'react-native';
+import { getDatabase, ref, get, update, onValue } from 'firebase/database';
 import { app } from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { scale } from 'react-native-size-matters';
 
 const isIos = Platform.OS === 'ios';
 const database = getDatabase(app);
 
-const TieredPlayerPicks = ({selectedPool}) => {
+const TieredPlayerPicks = ({ selectedPool, setSelectedPool }) => {
   const [players, setPlayers] = useState([]);
-  const [selectedPlayers, setSelectedPlayers] = useState(["", "", "", "", "", "", "", ""]); // Now 8 selectors
-  const [currentlySelecting, setCurrentlySelecting] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedPlayers, setSelectedPlayers] = useState({});
+  const [collapsedTiers, setCollapsedTiers] = useState({});
   const [username, setUsername] = useState('');
-  const [pastPicksVisible, setPastPicksVisible] = useState(false);
-  const [userPicks, setUserPicks] = useState([]);
   const [lockedPicks, setLockedPicks] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  const settings = selectedPool?.settings || {};
+  const amountOfTiers = settings.amountOfTiers || 1;
 
   useEffect(() => {
     const grabUsername = async () => {
@@ -31,15 +39,13 @@ const TieredPlayerPicks = ({selectedPool}) => {
 
   useEffect(() => {
     const lockedPicksRef = ref(database, 'featureflags/lockedPicks');
-    // Set up a real-time listener for changes in 'lockedPicks'
     const listener = onValue(lockedPicksRef, (snapshot) => {
       if (snapshot.exists()) {
         setLockedPicks(snapshot.val());
       }
     });
-    // Cleanup listener on component unmount
     return () => {
-      listener(); // Unsubscribe from the listener
+      listener();
     };
   }, []);
 
@@ -48,468 +54,285 @@ const TieredPlayerPicks = ({selectedPool}) => {
     get(playersRef).then((snapshot) => {
       if (snapshot.exists()) {
         setPlayers(Object.values(snapshot.val()));
-      } else {
-        //console.log("No data available");
       }
     }).catch((error) => {
       console.error(error);
     });
   }, []);
 
-  useEffect(() => {
-    if (username) {
-      const user = Object.values(selectedPool?.users).find(u => u.username === username);
-      console.log("is this a user", user)
-      if (user) {
-        const userPicks = [
-          user.pick1, 
-          user.pick2, 
-          user.pick3, 
-          user.pick4, 
-          user.pick5, 
-          user.pick6,
-          user.alt1,  // Added alt1
-          user.alt2   // Added alt2
-        ];
-        setSelectedPlayers(userPicks); 
-      }
-    }
-  }, [username, ]);
+  const sortedPlayers = [...players].sort((a, b) => parseInt(a.odds_to_win) - parseInt(b.odds_to_win));
+  const playersPerTier = Math.ceil(sortedPlayers.length / amountOfTiers);
+  const tiers = [];
 
-  useEffect(() => {
-    const currentUser = Object.values(selectedPool?.users).find(u => u.username === username);
-    if (currentUser) {
-      const pickHistory = currentUser.pickHistory || [];
-      setUserPicks(pickHistory);
+  let index = 0;
+  for (const player of sortedPlayers) {
+    const tierIndex = Math.floor(index / playersPerTier);
+    if (!tiers[tierIndex]) {
+      tiers[tierIndex] = [];
     }
-  }, [username, ]);
+    tiers[tierIndex].push(player);
+    index++;
+  }
 
-  const handleSelectPlayer = (index, playerName) => {
+  const handleSelectPlayer = (tierIndex, playerName) => {
     if (lockedPicks) {
       alert('Picks are locked!');
-      return; // Prevent player selection
+      return;
     }
-  
-    const updatedPlayers = [...selectedPlayers];
-    updatedPlayers[index] = playerName;
-    setSelectedPlayers(updatedPlayers);
-    setCurrentlySelecting(null);
-  
-    setUserPicks((prevPicks) => {
-      const newPickHistory = prevPicks.map((pick) => {
-        if (pick.player === playerName) {
-          return { ...pick, used: pick.used + 1 };
-        }
-        return pick;
-      });
-      return newPickHistory;
-    });
+    const alreadySelected = selectedPlayers[tierIndex] === playerName;
+
+    if (alreadySelected) {
+      const updated = { ...selectedPlayers };
+      delete updated[tierIndex];
+      setSelectedPlayers(updated);
+
+      setCollapsedTiers(prev => ({
+        ...prev,
+        [tierIndex]: false
+      }));
+    } else {
+      setSelectedPlayers(prev => ({
+        ...prev,
+        [tierIndex]: playerName
+      }));
+
+      setCollapsedTiers(prev => ({
+        ...prev,
+        [tierIndex]: true
+      }));
+    }
   };
-
-  const handleRemovePlayer = (index) => {
-    const updatedPlayers = [...selectedPlayers];
-    updatedPlayers[index] = "";
-    setSelectedPlayers(updatedPlayers);
-
-    setUserPicks((prevPicks) => {
-      const newPickHistory = prevPicks.map((pick) => {
-        if (pick.player === selectedPlayers[index]) {
-          return { ...pick, used: pick.used - 1 };
-        }
-        return pick;
-      });
-      return newPickHistory;
-    });
-  };
-
-  const isSaveButtonEnabled = selectedPlayers.every((player) => player !== "");
-
-  const filteredPlayers = players.filter(player =>
-    player.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   const handleSave = async () => {
-    const poolName = selectedPool?.name;
-    if (!username || !poolName) return;
-  
+    if (!username || !selectedPool?.name) return;
+
     const db = getDatabase();
-  
+
     try {
-      const snapshot = await get(ref(db, 'pools')); // Only fetch pools, not whole DB
+      const snapshot = await get(ref(db, 'pools'));
       if (!snapshot.exists()) return;
-  
+
       const poolsObj = snapshot.val();
-  
-      const poolEntries = Object.entries(poolsObj); // [ [poolKey, poolData], ... ]
-  
-      // Find the pool by its name
-      const foundPool = poolEntries.find(([_, pool]) => pool.name === poolName);
-  
-      if (!foundPool) {
-        console.error(`Pool with name "${poolName}" not found.`);
-        return;
-      }
-  
+      const poolEntries = Object.entries(poolsObj);
+      const foundPool = poolEntries.find(([_, pool]) => pool.name === selectedPool.name);
+
+      if (!foundPool) return;
+
       const [poolKey, poolData] = foundPool;
-  
-      if (!poolData.users) {
-        console.error(`No users found in pool "${poolName}".`);
-        return;
-      }
-  
-      const userEntries = Object.entries(poolData.users);
+      const userEntries = Object.entries(poolData.users || {});
       const foundUser = userEntries.find(([_, user]) => user.username === username);
-  
-      if (!foundUser) {
-        console.error(`User "${username}" not found in pool "${poolName}".`);
-        return;
-      }
-  
+
+      if (!foundUser) return;
+
       const [userKey, userData] = foundUser;
-  
+      const picks = Object.values(selectedPlayers);
+
       const updatedUser = {
         ...userData,
-        pick1: selectedPlayers[0],
-        pick2: selectedPlayers[1],
-        pick3: selectedPlayers[2],
-        pick4: selectedPlayers[3],
-        pick5: selectedPlayers[4],
-        pick6: selectedPlayers[5],
-        alt1: selectedPlayers[6], // Save alt1
-        alt2: selectedPlayers[7]  // Save alt2
+        pick1: picks[0] || '',
+        pick2: picks[1] || '',
+        pick3: picks[2] || '',
+        pick4: picks[3] || '',
+        pick5: picks[4] || '',
+        pick6: picks[5] || ''
       };
-  
+
       const userRef = ref(db, `pools/${poolKey}/users/${userKey}`);
       await update(userRef, updatedUser);
 
-      const updatedUsers = [...selectedPool.users]; // Make a shallow copy (still an array)
-      updatedUsers[userKey] = updatedUser; // userKey is already the index/key
-      
-      setSelectedPool({
-        ...selectedPool,
-        users: updatedUsers
-      });
-      
-  
+      const updatedUsers = { ...selectedPool.users, [userKey]: updatedUser };
+      setSelectedPool({ ...selectedPool, users: updatedUsers });
+
       alert('Picks saved successfully!');
-      triggerScoreboardRefresh(); // Refresh after saving
-  
     } catch (error) {
       console.error('Error saving picks: ', error);
       alert('Failed to save picks.');
     }
   };
-  
+
+  const isSaveDisabled = Object.keys(selectedPlayers).length < amountOfTiers || lockedPicks;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={{flex: 1, top: 50, alignItems: 'center'}}>
+    <View style={styles.container}>
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerTitle}>Golf Tiers Based on DraftKings</Text>
+        <Text style={styles.headerDescription}>
+          Choose one golfer from each of the tiers, ranked from favorites to longshots based on betting odds.
+          You can edit your picks until the first tee time — after that, selections are locked and can’t be changed.
+        </Text>
+      </View>
 
-        <TouchableOpacity
-          style={styles.pastPicksButton}
-          onPress={() => setPastPicksVisible(!pastPicksVisible)}
-        >
-          <Text style={styles.pastPicksButtonText}>Past Picks</Text>
-        </TouchableOpacity>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        {tiers.map((tierPlayers, tierIndex) => {
+          const isCollapsed = collapsedTiers[tierIndex];
+          const selectedName = selectedPlayers[tierIndex];
 
-        <Modal
-          visible={pastPicksVisible}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setPastPicksVisible(false)}
-          style={{ alignItems: 'center' }}
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.pastPicksContainer}>
-              <ScrollView>
-                {userPicks.length === 0 ? (
-                  <Text style={{ textAlign: 'center', fontSize: 16 }}>
-                    You have no Past Picks yet
-                  </Text>
-                ) : (
-                  userPicks
-                    .sort((a, b) => b.used - a.used)
-                    .map((pick, index) => (
-                      <View key={index} style={styles.pastPickCard}>
-                        <Text style={styles.pastPickPlayer}>{pick.player}</Text>
-                        <Text style={styles.pastPickCount}>Picked {pick.used} times</Text>
-                      </View>
-                    ))
-                )}
-              </ScrollView>
-            </View>
-              
-            <TouchableOpacity
-              style={styles.closeModalButton}
-              onPress={() => setPastPicksVisible(false)}
-            >
-              <Text style={styles.closeModalText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </Modal>
-
-
-        <View style={styles.content}>
-          <Text style={styles.title}>Pick Your Players</Text>
-
-          <View style={styles.inputGrid}>
-          {selectedPlayers.map((player, index) => (
-            <View key={index} style={styles.inputContainer}>
-              <TouchableOpacity
-                style={[styles.input, currentlySelecting === index && styles.selectedInput]}
-                onPress={() => {
-                  if (lockedPicks) {
-                    alert('Picks are locked!');
-                  } else {
-                    setCurrentlySelecting(index);
-                  }
-                }}
-              >
-                <Text style={styles.inputText} numberOfLines={1}>
-                  {player || (currentlySelecting === index ? 'Selecting...' : (index < 6 ? 'Pick ' + (index + 1) : index === 6 ? 'Alternate 1' : 'Alternate 2'))}
-                </Text>
-              </TouchableOpacity>       
-
-              {player && (
+          return (
+            <View key={tierIndex} style={styles.tierSection}>
+              <Text style={styles.tierHeader}>Tier {tierIndex + 1}</Text>
+              {isCollapsed && selectedName ? (
                 <TouchableOpacity
-                  style={styles.removeButton}
-                  onPress={() => handleRemovePlayer(index)}
+                  style={[styles.playerCard, styles.selectedPlayerCard]}
+                  onPress={() => handleSelectPlayer(tierIndex, selectedName)}
                 >
-                  <Text style={styles.removeButtonText}>X</Text>
+                  <View style={styles.playerInfo}>
+                    <Text style={styles.playerName}>{selectedName}</Text>
+                    <Text style={styles.playerOdds}>
+                      Odds: {tierPlayers.find(p => p.name === selectedName)?.odds_to_win}
+                    </Text>
+                  </View>
+                  <View    style={[
+                          styles.selectButton,
+                          styles.selectedButton
+                        ]}>
+                  <Text style={styles.selectButtonText}>Change</Text>
+                      </View>
                 </TouchableOpacity>
+              ) : (
+                tierPlayers.map((player, idx) => {
+                  const isSelected = selectedName === player.name;
+                  const isDisabled = selectedName && !isSelected;
+
+                  return (
+                    <View
+                      key={idx}
+                      style={[
+                        styles.playerCard,
+                        isDisabled && styles.disabledPlayerCard
+                      ]}
+                    >
+                      <View style={styles.playerInfo}>
+                        <Text style={styles.playerName}>{player.name}</Text>
+                        <Text style={styles.playerOdds}>Odds: {player.odds_to_win}</Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => handleSelectPlayer(tierIndex, player.name)}
+                        disabled={isDisabled}
+                        style={[
+                          styles.selectButton,
+                          isSelected && styles.selectedButton
+                        ]}
+                      >
+                        <Text style={styles.selectButtonText}>
+                          {isSelected ? 'Selected' : 'Select'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })
               )}
             </View>
-          ))}
-          </View>
+          );
+        })}
+      </ScrollView>
 
-          <TextInput
-            style={styles.searchBar}
-            placeholder="Search for a player"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-
-          {currentlySelecting !== null && (
-            <ScrollView contentContainerStyle={styles.playerList}>
-              {filteredPlayers.map((player, index) => {
-                const pickCount = userPicks.find(pick => pick.player === player.name)?.used || 0;
-                const isDisabled = pickCount >= 4; // Disable if player picked 4 times
-
-                return (
-                  <View style={styles.playerCard} key={index}>
-                    <Text style={styles.playerName}>{player.name}</Text>
-                    <TouchableOpacity
-                      style={[styles.selectButton, isDisabled && styles.selectButtonDisabled]}
-                      onPress={() => !isDisabled && handleSelectPlayer(currentlySelecting, player.name)}
-                      disabled={isDisabled} // Disable button if player picked 4 times
-                    >
-                      <Text style={styles.selectButtonText}>
-                        Select {pickCount > 0 && `(${pickCount})`}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
-            </ScrollView>
-          )}
-
-          <TouchableOpacity
-            style={[styles.saveButton, !isSaveButtonEnabled && styles.saveButtonDisabled]}
-            onPress={handleSave}
-            disabled={!isSaveButtonEnabled}
-          >
-            <Text
-              style={[styles.saveButtonText, !isSaveButtonEnabled && styles.saveButtonTextDisabled]}
-            >
-              Save
-            </Text>
-          </TouchableOpacity>
-        </View>
+      <View style={{ width: '100%', backgroundColor: '#305115', height: scale(65) }}>
+        <TouchableOpacity
+          style={[styles.saveButton, isSaveDisabled && styles.saveButtonDisabled]}
+          onPress={handleSave}
+          disabled={isSaveDisabled}
+        >
+          <Text style={styles.saveButtonText}>
+            {isSaveDisabled ? 'Select All Tiers' : 'Save Picks'}
+          </Text>
+        </TouchableOpacity>
       </View>
-    </ScrollView>
+    </View>
   );
 };
 
-
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
-    backgroundColor: '#305115',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    height: isIos ? undefined : 1, // Ensures proper scrolling behavior on the web
-
-  },
-  logoutButton: {
-    position: 'absolute',
-    right: 0,
-    top: 10,
-  },
-  logoutText: {
-    paddingRight: 20,
-    color: 'white',
-  },
-  pastPicksButton: {
-    position: 'absolute',
-    left: 0,
-    top: 10,
-    backgroundColor: '#4CAF50',
-    paddingVertical: 5,
-    paddingHorizontal: 15,
-    borderRadius: 5,
-  },
-  pastPicksButtonText: {
-    color: 'white',
-    fontSize: 16,
-  },
-  modalContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: '#305115',
+    paddingTop: scale(20),
   },
-  pastPicksContainer: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 10,
-    width: '80%',
-    maxHeight: '80%',
+  scrollContainer: {
+    paddingHorizontal: scale(10),
+    paddingBottom: scale(100),
   },
-  pastPickCard: {
-    marginBottom: 10,
+  headerContainer: {
+    marginTop: scale(25),
+    padding: scale(10),
+    backgroundColor: '#204010',
+    marginBottom: scale(10),
   },
-  pastPickPlayer: {
-    fontSize: 18,
+  headerTitle: {
+    fontSize: scale(16),
     fontWeight: 'bold',
+    color: '#FFD700',
+    marginBottom: scale(5),
   },
-  pastPickCount: {
-    fontSize: 14,
-    color: '#555',
+  headerDescription: {
+    fontSize: scale(12),
+    color: '#FFFFFF',
   },
-  closeModalButton: {
-    marginTop: 20,
-    backgroundColor: '#f44336',
-    padding: 10,
-    borderRadius: 5,
+  tierSection: {
+    marginBottom: scale(20),
   },
-  closeModalText: {
-    color: 'white',
-    fontSize: 16,
-  },
-  content: {
-    maxWidth: 500,
-    minWidth: 300,
-    alignSelf: 'center',
-    top: 60,
-  },
-  title: {
-    fontSize: 24,
+  tierHeader: {
+    fontSize: scale(18),
     fontWeight: 'bold',
     color: 'white',
-    marginBottom: 20,
-  },
-  inputGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  inputContainer: {
-    width: '30%',
-    marginBottom: 10,
-    position: 'relative',
-  },
-  input: {
-    height: 35,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    paddingLeft: 8,
-    backgroundColor: 'white',
-    borderRadius: 5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  selectedInput: {
-    backgroundColor: '#cce5ff',
-  },
-  inputText: {
-    fontSize: 14,
-    color: '#000',
-    textAlignVertical: 'center',
-    textAlign: 'center',
-  },
-  removeButton: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#f44336',
-    borderRadius: 12,
-    padding: 4,
-  },
-  removeButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 12,
-  },
-  searchBar: {
-    height: 35,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    paddingLeft: 8,
-    backgroundColor: 'white',
-    borderRadius: 5,
-    marginBottom: 10,
-  },
-  playerList: {
-    flexDirection: 'column',
-    alignItems: 'center',
+    marginBottom: scale(10),
   },
   playerCard: {
-    width: '90%',
-    backgroundColor: '#fff',
-    padding: 15,
-    marginVertical: 5,
-    borderRadius: 8,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
+    backgroundColor: 'white',
+    padding: scale(10),
+    marginBottom: scale(5),
+    borderRadius: 5,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  disabledPlayerCard: {
+    backgroundColor: '#ccc',
+  },
+  selectedPlayerCard: {
+  },
+  playerInfo: {
+    flexDirection: 'column',
   },
   playerName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: scale(14),
+    color: 'black',
+  },
+  playerOdds: {
+    fontSize: scale(12),
+    color: 'gray',
   },
   selectButton: {
+    marginTop: scale(5),
+    backgroundColor: '#007AFF',
+    paddingVertical: scale(5),
+    paddingHorizontal: scale(10),
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  selectedButton: {
     backgroundColor: '#4CAF50',
-    paddingVertical: 5,
-    paddingHorizontal: 15,
-    borderRadius: 5,
   },
   selectButtonText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: scale(12),
     fontWeight: 'bold',
   },
   saveButton: {
+    position: 'absolute',
+    bottom: scale(10),
+    left: scale(10),
+    right: scale(10),
     backgroundColor: '#ffdf00',
-    paddingVertical: 10,
-    borderRadius: 5,
+    padding: scale(12),
+    borderRadius: 8,
     alignItems: 'center',
-    marginTop: 20,
-  },
-  saveButtonText: {
-    color: 'black',
-    fontSize: 16,
   },
   saveButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#999',
   },
-  saveButtonTextDisabled: {
-    color: '#777',
+  saveButtonText: {
+    fontSize: scale(16),
+    color: 'black',
   },
 });
 

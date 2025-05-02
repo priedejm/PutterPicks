@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Platform, Dimensions } from 'react-native';
 import { getDatabase, ref, get, update, onValue } from 'firebase/database';
 import { app } from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -10,6 +10,8 @@ const database = getDatabase(app);
 
 const SALARY_CAP = 50000;
 const PLAYER_COST = 5000;
+const iosWidth = Dimensions.get('window').width;
+
 
 const SalaryCapPlayerPicks = ({ selectedPool, setSelectedPool }) => {
   const [players, setPlayers] = useState([]);
@@ -102,9 +104,18 @@ const SalaryCapPlayerPicks = ({ selectedPool, setSelectedPool }) => {
 
   const isSaveButtonEnabled = selectedPlayers.every(player => player !== "") && currentSalary <= SALARY_CAP;
 
-  const filteredPlayers = players.filter(player =>
-    player.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredPlayers = players
+    .filter(player =>
+      player.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .filter(player =>
+      !selectedPlayers.includes(player.name)
+    )
+    .sort((a, b) => {
+      const oddsA = parseInt(a.odds_to_win);
+      const oddsB = parseInt(b.odds_to_win);
+      return oddsA - oddsB;
+  });
 
   const handleSave = async () => {
     if (currentSalary > SALARY_CAP) {
@@ -158,7 +169,7 @@ const SalaryCapPlayerPicks = ({ selectedPool, setSelectedPool }) => {
 
       const userRef = ref(db, `pools/${poolKey}/users/${userKey}`);
       await update(userRef, updatedUser);
-      
+
       const updatedUsers = [...selectedPool.users]; // Make a shallow copy (still an array)
       updatedUsers[userKey] = updatedUser; // userKey is already the index/key
       
@@ -182,8 +193,14 @@ const SalaryCapPlayerPicks = ({ selectedPool, setSelectedPool }) => {
   return (
     <View style={styles.container}>
       <View style={{ flex: 1, alignItems: 'center' }}>
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerTitle}>Salary Caps Based on DraftKings</Text>
+        <Text style={styles.headerDescription}>
+        Choose players strategically while staying within your salary cap of {formatAbbreviated(SALARY_CAP)}. Each player has a unique cost, determined by their odds to win. Make sure to manage your selections wisely to maximize your roster strength without exceeding the cap.
+
+        </Text>
+      </View>
         <View style={styles.content}>
-          <Text style={styles.title}>Pick Your Players</Text>
 
           <View style={{flexDirection: 'row', width: '100%', alignItems: 'center', justifyContent: 'space-evenly', marginBottom: scale(30)}}>
             <View style={{justifyContent: 'center', alignItems: 'center'}}>
@@ -281,9 +298,25 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
   },
+  headerContainer: {
+    marginTop: scale(50),
+    padding: scale(10),
+    backgroundColor: '#204010',
+    width: iosWidth
+  },
+  headerTitle: {
+    fontSize: scale(16),
+    fontWeight: 'bold',
+    color: '#FFD700',
+    marginBottom: scale(5),
+  },
+  headerDescription: {
+    fontSize: scale(12),
+    color: '#FFFFFF',
+  },
   content: {
     alignSelf: 'center',
-    top: scale(40),
+    top: scale(10),
     width: '100%',
   },
   title: {
@@ -336,11 +369,14 @@ const styles = StyleSheet.create({
   },
   removeButton: {
     position: 'absolute',
-    top: -5,
-    right: -5,
+    top: -7,
+    right: -7,
     backgroundColor: '#f44336',
-    borderRadius: 12,
-    padding: 4,
+    borderRadius: 30,
+    height: scale(15),
+    width: scale(15),
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   removeButtonText: {
     color: 'white',
@@ -394,7 +430,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     alignItems: 'center',
     marginTop: scale(15),
-    marginBottom: scale(20)
+    marginBottom: scale(10)
   },
   saveButtonText: {
     color: 'black',

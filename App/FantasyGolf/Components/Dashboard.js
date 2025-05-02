@@ -159,6 +159,7 @@ const Dashboard = () => {
           .map((pool, index) => {
 
           const latestTournament = pool.tournaments?.length ? pool.tournaments[pool.tournaments.length - 1] : null;
+          const rosterFormat = pool.settings?.rosterFormat === 'tiered' ? 'Tiered' : pool.settings?.rosterFormat === 'salaryCap' ? 'Salary Cap' : null;
           return (
             <TouchableOpacity
               activeOpacity={0.8}
@@ -185,9 +186,15 @@ const Dashboard = () => {
                     {pool.name} |
                   </Text>
                   <Text style={{ color: 'white', fontSize: scale(14), fontWeight: 'bold', marginLeft: scale(5), top: scale(2) }}>
-                    {pool.mode}
+                    {pool.mode} {rosterFormat && `- ${rosterFormat}`}
                   </Text>
                 </View>
+
+                {/* {rosterFormat && 
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: scale(4) }}>
+                  <Text style={{ fontSize: scale(14), marginRight: scale(5) }}>👾</Text>
+                  <Text style={{ color: 'white', fontSize: scale(14) }}>{rosterFormat}</Text>
+                </View>} */}
 
                 {latestTournament && 
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: scale(4) }}>

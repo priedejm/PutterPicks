@@ -386,7 +386,6 @@ const Scoreboard = () => {
         horizontal={false}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContainer}
-        bounces={false} // optional: prevents rubberband scrolling horizontally
         contentInsetAdjustmentBehavior="never"
       >
       <View style={{flex: 1, marginTop: 50, alignItems: 'center'}}>

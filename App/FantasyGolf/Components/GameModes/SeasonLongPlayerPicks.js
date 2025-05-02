@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Platform, Modal } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Platform, Modal, Dimensions } from 'react-native';
 import { getDatabase, ref, get, onValue, update } from 'firebase/database';
 import { app } from '../../config';
 import { useUser } from '../../context/UserContext';
@@ -8,6 +8,7 @@ import { scale } from 'react-native-size-matters';
 
 const isIos = Platform.OS === 'ios';
 const database = getDatabase(app);
+const iosWidth = Dimensions.get('window').width;
 
 const SeasonLongPlayerPicks = () => {
   const { triggerScoreboardRefresh, selectedPool, setSelectedPool } = useUser();
@@ -123,7 +124,7 @@ const SeasonLongPlayerPicks = () => {
     });
   };
 
-  const isSaveButtonEnabled = selectedPlayers.every((player) => player !== "");
+  const isSaveButtonEnabled = selectedPlayers.every((player) => player !== "") && !lockedPicks;
 
   const filteredPlayers = players
     .filter(player =>
@@ -131,7 +132,13 @@ const SeasonLongPlayerPicks = () => {
     )
     .filter(player =>
       !selectedPlayers.includes(player.name)
-    );
+    )
+    .sort((a, b) => {
+      const oddsA = parseInt(a.odds_to_win);
+      const oddsB = parseInt(b.odds_to_win);
+      return oddsA - oddsB;
+  });
+
 
   const handleSave = async () => {
     const poolName = selectedPool?.name;
@@ -199,6 +206,17 @@ const SeasonLongPlayerPicks = () => {
           <Text style={styles.pastPicksButtonText}>Past Picks</Text>
         </TouchableOpacity>
 
+        <View style={styles.headerContainer}>
+          <Text style={styles.headerTitle}>Season Long Picks</Text>
+          <Text style={styles.headerDescription}>
+            Each week, you’ll change your players and earn points based on their performance.Leaderboards update weekly, so consistency is key to building your season total.{"\n\n"}
+
+            You can only pick each player a limited number of times, depending on your pool’s settings. Track your progress as the leaderboard updates.
+          </Text>
+
+
+        </View>
+
         <Modal
           visible={pastPicksVisible}
           transparent={true}
@@ -223,18 +241,17 @@ const SeasonLongPlayerPicks = () => {
                     ))
                 )}
               </ScrollView>
-              <TouchableOpacity
+            </View>
+            <TouchableOpacity
                 style={styles.closeModalButton}
                 onPress={() => setPastPicksVisible(false)}
               >
                 <Text style={styles.closeModalText}>Close</Text>
               </TouchableOpacity>
-            </View>
           </View>
         </Modal>
 
         <View style={styles.content}>
-          <Text style={styles.title}>Pick Your Players</Text>
 
           <View style={styles.inputGrid}>
             {selectedPlayers.map((player, index) => (
@@ -277,35 +294,39 @@ const SeasonLongPlayerPicks = () => {
             </Text>
           </TouchableOpacity>
 
-          <TextInput
-            style={styles.searchBar}
-            placeholder="Search for a player"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-
           {currentlySelecting !== null && (
-            <ScrollView contentContainerStyle={styles.playerList}>
-              {filteredPlayers.map((player, index) => {
-                const pickCount = userPicks.find(pick => pick.player === player.name)?.used || 0;
-                const isDisabled = pickCount >= 4;
+            <View style={{}}>
+              <TextInput
+                style={styles.searchBar}
+                placeholder="Search for a player"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              <ScrollView contentContainerStyle={styles.playerList}>
+                {filteredPlayers.map((player, index) => {
+                  const pickCount = userPicks.find(pick => pick.player === player.name)?.used || 0;
+                  const isDisabled = pickCount >= 4;
 
-                return (
-                  <View style={styles.playerCard} key={index}>
-                    <Text style={styles.playerName}>{player.name}</Text>
-                    <TouchableOpacity
-                      style={[styles.selectButton, isDisabled && styles.selectButtonDisabled]}
-                      onPress={() => !isDisabled && handleSelectPlayer(currentlySelecting, player.name)}
-                      disabled={isDisabled}
-                    >
-                      <Text style={styles.selectButtonText}>
-                        Select {pickCount > 0 && `(${pickCount})`}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
-            </ScrollView>
+                  return (
+                    <View style={styles.playerCard} key={index}>
+                      <View style={styles.playerInfo}>
+                        <Text style={styles.playerName}>{player.name}</Text>
+                        <Text style={styles.playerOdds}>Odds: {player.odds_to_win}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.selectButton, isDisabled && styles.selectButtonDisabled]}
+                        onPress={() => !isDisabled && handleSelectPlayer(currentlySelecting, player.name)}
+                        disabled={isDisabled}
+                      >
+                        <Text style={styles.selectButtonText}>
+                          Select {pickCount > 0 && `(${pickCount})`}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
           )}
         </View>
       </View>
@@ -315,15 +336,32 @@ const SeasonLongPlayerPicks = () => {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     backgroundColor: '#305115',
     height: isIos ? undefined : 1,
     paddingVertical: 10,
     paddingHorizontal: 20,
   },
+  headerContainer: {
+    marginTop: scale(40),
+    padding: scale(10),
+    backgroundColor: '#204010',
+    width: iosWidth
+  },
+  headerTitle: {
+    fontSize: scale(16),
+    fontWeight: 'bold',
+    color: '#FFD700',
+    marginBottom: scale(5),
+  },
+  headerDescription: {
+    fontSize: scale(12),
+    color: '#FFFFFF',
+  },
   pastPicksButton: {
     position: 'absolute',
     left: 0,
-    top: 10,
+    top: 0,
     backgroundColor: '#4CAF50',
     paddingVertical: 5,
     paddingHorizontal: 15,
@@ -362,6 +400,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f44336',
     padding: 10,
     borderRadius: 5,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   closeModalText: {
     color: 'white',
@@ -369,19 +409,33 @@ const styles = StyleSheet.create({
   },
   content: {
     alignSelf: 'center',
-    top: scale(40),
+    top: scale(15),
+    width: '100%',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: 'white',
+    marginBottom: scale(15),
+    textAlign: 'center',
+  },
+  remainingSalaryText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  salaryText: {
+    fontSize: 18,
+    color: 'white',
     marginBottom: 20,
+    textAlign: 'center',
   },
   inputGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: scale(50),
   },
   inputContainer: {
     width: '30%',
@@ -392,6 +446,7 @@ const styles = StyleSheet.create({
     height: 35,
     borderColor: '#ccc',
     borderWidth: 1,
+    paddingLeft: 8,
     backgroundColor: 'white',
     borderRadius: 5,
     justifyContent: 'center',
@@ -407,11 +462,14 @@ const styles = StyleSheet.create({
   },
   removeButton: {
     position: 'absolute',
-    top: -5,
-    right: -5,
+    top: -7,
+    right: -7,
     backgroundColor: '#f44336',
-    borderRadius: 12,
-    padding: 4,
+    borderRadius: 30,
+    height: scale(15),
+    width: scale(15),
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   removeButtonText: {
     color: 'white',
@@ -419,13 +477,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   searchBar: {
-    height: scale(40),
+    height: 35,
     borderColor: '#ccc',
     borderWidth: 1,
     paddingLeft: 8,
     backgroundColor: 'white',
     borderRadius: 5,
     marginBottom: 10,
+  },
+  playerScroll: {
+    maxHeight: 400,
+    marginTop: 10,
   },
   playerList: {
     flexDirection: 'column',
@@ -437,14 +499,20 @@ const styles = StyleSheet.create({
     padding: 15,
     marginVertical: 5,
     borderRadius: 8,
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center'
+  },
+  playerInfo: {
+    flexDirection: 'column',
   },
   playerName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: scale(14),
+    color: 'black',
+  },
+  playerOdds: {
+    fontSize: scale(12),
+    color: 'gray',
   },
   selectButton: {
     backgroundColor: '#4CAF50',
@@ -452,33 +520,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     borderRadius: 5,
   },
-  selectButtonDisabled: {
-    backgroundColor: '#aaa',
-  },
   selectButtonText: {
     color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
   },
   saveButton: {
     backgroundColor: '#ffdf00',
+    paddingVertical: 10,
     borderRadius: 5,
     alignItems: 'center',
-    justifyContent: "center",
-    position: 'absolute',
-    top: scale(165),
-    width: '100%',
-    height: scale(40)
+    marginTop: scale(15),
+    marginBottom: scale(10)
+  },
+  saveButtonText: {
+    color: 'black',
+    fontSize: 16,
   },
   saveButtonDisabled: {
     backgroundColor: '#ccc',
   },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
   saveButtonTextDisabled: {
-    color: '#999',
+    color: '#777',
+  },
+  salaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    width: '100%',
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
 });
 
