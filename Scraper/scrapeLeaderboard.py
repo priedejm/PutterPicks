@@ -14,7 +14,15 @@ import json  # Missing import for JSON handling
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, message=".*resource_tracker.*")
 
+# Enable debug print if --debug flag is passed
+DEBUG = '--debug' in sys.argv
+
+def debug_print(*args, **kwargs):
+    if DEBUG:
+        print(*args, **kwargs)
+
 # Initialize Firebase with the config
+
 firebase_fantasygolf = firebase.FirebaseApplication('https://fantasygolf-22bac-default-rtdb.firebaseio.com', None)
 firebase_putterpicks = firebase.FirebaseApplication('https://putterpicks-default-rtdb.firebaseio.com', None)
 
@@ -23,14 +31,14 @@ def save_screenshot(driver, error_message):
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')  # More readable timestamp format
     screenshot_filename = f"/Users/justinpriede/Public/personal stuff as of jul 15/bookTeeTimes/screenshots/error_{timestamp}.png"
     driver.save_screenshot(screenshot_filename)
-    print(f"Screenshot saved to {screenshot_filename} due to error: {error_message}")
+    debug_print(f"Screenshot saved to {screenshot_filename} due to error: {error_message}")
 
 def fetchLeaderboard():
     """Make requests using the cookies from Selenium."""
 
     # Set up WebDriver options
     chrome_options = Options()
-    chrome_options.add_argument("--headless=new")
+    # chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--window-size=1920,1080")
@@ -42,13 +50,13 @@ def fetchLeaderboard():
     chrome_options.add_experimental_option('useAutomationExtension', False)
 
 
-    chrome_options.binary_location = "/usr/bin/chromium-browser"  # Point to Chromium
-    service = Service("/usr/bin/chromedriver")  
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    # chrome_options.binary_location = "/usr/bin/chromium-browser"  # Point to Chromium
+    # service = Service("/usr/bin/chromedriver")  
+    # driver = webdriver.Chrome(service=service, options=chrome_options)
 
     # Automatically download and set up Chrome and ChromeDriver using webdriver_manager
-    # driver_path = ChromeDriverManager().install()  # This will download ChromeDriver and set the path
-    # driver = webdriver.Chrome(service=Service(driver_path), options=chrome_options)
+    driver_path = ChromeDriverManager().install()  # This will download ChromeDriver and set the path
+    driver = webdriver.Chrome(service=Service(driver_path), options=chrome_options)
     driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
         "source": """
             Object.defineProperty(navigator, 'webdriver', {
@@ -57,7 +65,7 @@ def fetchLeaderboard():
         """
     })
     try:
-        print("Opening the leaderboard page...")
+        debug_print("Opening the leaderboard page...")
         driver.get("https://www.pgatour.com/leaderboard")
         soup = BeautifulSoup(driver.page_source, 'html.parser')
         # print("whats this soup like", soup)
@@ -106,12 +114,12 @@ def fetchLeaderboard():
                         # Extract the substring between 'prod/flags' and '.svg' to get the country flag URL
                         flag_url = player_row_str[start_index:end_index + 4]  # Including '.svg'
                         country_code = flag_url.split('prod/flags/')[1].split('.svg')[0]  # Extract the country code
-                        print(f"Country Code: {country_code}")
+                        # print(f"Country Code: {country_code}")
                         player['country'] = country_code  # Add country to the player dictionary
                     else:
-                        print("❌ '.svg' not found after 'prod/flags'")
+                        debug_print("❌ '.svg' not found after 'prod/flags'")
                 else:
-                    print("❌ 'prod/flags' not found in the player row.")
+                    debug_print("❌ 'prod/flags' not found in the player row.")
 
                 # Extract Rounds (Refined to make sure we get the right columns)
                 # rounds = player_row.find_all('td', class_='css-139kpds')
@@ -121,41 +129,41 @@ def fetchLeaderboard():
                 player_data.append(player)
             
             except Exception as e:
-                print(f"Error processing player row: {e}")
+                debug_print(f"Error processing player row: {e}")
                 continue  # Skip to the next player if an error occurs
-        print("player data", player_data)
+        debug_print("player data", player_data)
         # Check if player_data is populated
         if player_data:
             for player in player_data:
-                print(f"Position: {player['position']}")
-                print(f"Name: {player['name']}")
-                print(f"Score: {player['score']}")
-                print(f"Thru Status: {player['thru_status']}")
-                print(f"Round Score: {player['round']}")
-                print(f"Odds: {player['odds_to_win']}")
-                print(f"Country: {player['country']}")
-                print("-" * 50)  # Just a separator for readability
+                debug_print(f"Position: {player['position']}")
+                debug_print(f"Name: {player['name']}")
+                debug_print(f"Score: {player['score']}")
+                debug_print(f"Thru Status: {player['thru_status']}")
+                debug_print(f"Round Score: {player['round']}")
+                debug_print(f"Odds: {player['odds_to_win']}")
+                debug_print(f"Country: {player['country']}")
+                debug_print("-" * 50)  # Just a separator for readability
         else:
-            print("❌ No player data found.")
+            debug_print("❌ No player data found.")
 
         # Replace the entire players list in Firebase Realtime Database
         firebase_fantasygolf.put('/players', 'players', player_data)
         firebase_putterpicks.put('/players', 'players', player_data)
         
     except Exception as e:
-        print("❌ Unexpected error:", e)
+        debug_print("❌ Unexpected error:", e)
         save_screenshot(driver, str(e))  # Capture screenshot upon error
 
     finally:
         driver.quit()
 
-
 # Function to print the current time to the console
+
 def print_current_time():
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"Script started at: {current_time}")
+    debug_print(f"Script started at: {current_time}")
 
-def main(): 
+def main():
     """Main function to handle login, data fetching, and cron job removal."""
     print_current_time()
     fetchLeaderboard()
