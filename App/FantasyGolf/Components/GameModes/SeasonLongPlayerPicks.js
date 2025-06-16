@@ -21,6 +21,7 @@ const SeasonLongPlayerPicks = () => {
   const [userPicks, setUserPicks] = useState([]);
   const [lockedPicks, setLockedPicks] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
 
   useEffect(() => {
     const grabUsername = async () => {
@@ -197,8 +198,12 @@ const SeasonLongPlayerPicks = () => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={{ flex: 1, top: 50, alignItems: 'center' }}>
+    <ScrollView 
+      contentContainerStyle={styles.scrollContainer}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={true}
+    >
+      <View style={{flex: 1, top: scale(50), alignItems: 'center' }}>
         <TouchableOpacity
           style={styles.pastPicksButton}
           onPress={() => setPastPicksVisible(!pastPicksVisible)}
@@ -207,14 +212,22 @@ const SeasonLongPlayerPicks = () => {
         </TouchableOpacity>
 
         <View style={styles.headerContainer}>
-          <Text style={styles.headerTitle}>Season Long Picks</Text>
-          <Text style={styles.headerDescription}>
-            Each week, you’ll change your players and earn points based on their performance.Leaderboards update weekly, so consistency is key to building your season total.{"\n\n"}
-
-            You can only pick each player a limited number of times, depending on your pool’s settings. Track your progress as the leaderboard updates.
-          </Text>
-
-
+          <TouchableOpacity 
+            onPress={() => setShowInstructions(!showInstructions)}
+            style={styles.instructionsToggle}
+          >
+            <Text style={styles.headerTitle}>Season Long Picks</Text>
+            <Text style={styles.toggleText}>
+              {showInstructions ? '▲ Show Less' : '▼ Show More'}
+            </Text>
+          </TouchableOpacity>
+          
+          {showInstructions && (
+            <Text style={styles.headerDescription}>
+              Each week, you'll change your players and earn points based on their performance. Leaderboards update weekly, so consistency is key to building your season total.{"\n\n"}
+              You can only pick each player a limited number of times, depending on your pool's settings. Track your progress as the leaderboard updates.
+            </Text>
+          )}
         </View>
 
         <Modal
@@ -252,7 +265,6 @@ const SeasonLongPlayerPicks = () => {
         </Modal>
 
         <View style={styles.content}>
-
           <View style={styles.inputGrid}>
             {selectedPlayers.map((player, index) => (
               <View key={index} style={styles.inputContainer}>
@@ -283,7 +295,6 @@ const SeasonLongPlayerPicks = () => {
             ))}
           </View>
 
-
           <TouchableOpacity
             style={[styles.saveButton, !isSaveButtonEnabled && styles.saveButtonDisabled]}
             onPress={handleSave}
@@ -295,14 +306,15 @@ const SeasonLongPlayerPicks = () => {
           </TouchableOpacity>
 
           {currentlySelecting !== null && (
-            <View style={{}}>
+            <View style={styles.playerSelectionContainer}>
               <TextInput
                 style={styles.searchBar}
                 placeholder="Search for a player"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
+                autoFocus={false}
               />
-              <ScrollView contentContainerStyle={styles.playerList}>
+              <View style={styles.playerList}>
                 {filteredPlayers.map((player, index) => {
                   const pickCount = userPicks.find(pick => pick.player === player.name)?.used || 0;
                   const isDisabled = pickCount >= 4;
@@ -325,7 +337,7 @@ const SeasonLongPlayerPicks = () => {
                     </View>
                   );
                 })}
-              </ScrollView>
+              </View>
             </View>
           )}
         </View>
@@ -335,37 +347,55 @@ const SeasonLongPlayerPicks = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  scrollContainer: {
+    flexGrow: 1,
     backgroundColor: '#305115',
-    height: isIos ? undefined : 1,
     paddingVertical: 10,
     paddingHorizontal: 20,
   },
+  container: {
+    flex: 1,
+    backgroundColor: '#305115',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    paddingTop: 50,
+  },
   headerContainer: {
-    marginTop: scale(40),
+    marginTop: scale(50),
     padding: scale(10),
     backgroundColor: '#204010',
-    width: iosWidth
+    width: iosWidth,
+    borderRadius: 5,
+  },
+  instructionsToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: scale(16),
     fontWeight: 'bold',
     color: '#FFD700',
-    marginBottom: scale(5),
+  },
+  toggleText: {
+    fontSize: scale(12),
+    color: '#FFD700',
+    fontWeight: '500',
   },
   headerDescription: {
     fontSize: scale(12),
     color: '#FFFFFF',
+    marginTop: scale(10),
   },
   pastPicksButton: {
     position: 'absolute',
-    left: 0,
-    top: 0,
+    left: 20,
+    top: 10,
     backgroundColor: '#4CAF50',
     paddingVertical: 5,
     paddingHorizontal: 15,
     borderRadius: 5,
+    zIndex: 1,
   },
   pastPicksButtonText: {
     color: 'white',
@@ -409,7 +439,7 @@ const styles = StyleSheet.create({
   },
   content: {
     alignSelf: 'center',
-    top: scale(15),
+    marginTop: scale(15),
     width: '100%',
   },
   title: {
@@ -476,6 +506,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 12,
   },
+  playerSelectionContainer: {
+    marginTop: 10,
+  },
   searchBar: {
     height: 35,
     borderColor: '#ccc',
@@ -492,6 +525,7 @@ const styles = StyleSheet.create({
   playerList: {
     flexDirection: 'column',
     alignItems: 'center',
+    paddingBottom: 20,
   },
   playerCard: {
     width: '90%',

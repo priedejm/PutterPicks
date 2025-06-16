@@ -21,6 +21,7 @@ const SalaryCapPlayerPicks = ({ selectedPool, setSelectedPool }) => {
   const [username, setUsername] = useState('');
   const [lockedPicks, setLockedPicks] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
 
   useEffect(() => {
     const grabUsername = async () => {
@@ -191,17 +192,31 @@ const SalaryCapPlayerPicks = ({ selectedPool, setSelectedPool }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={{ flex: 1, alignItems: 'center' }}>
-      <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>Salary Caps Based on DraftKings</Text>
-        <Text style={styles.headerDescription}>
-        Choose players strategically while staying within your salary cap of {formatAbbreviated(SALARY_CAP)}. Each player has a unique cost, determined by their odds to win. Make sure to manage your selections wisely to maximize your roster strength without exceeding the cap.
+    <ScrollView 
+      contentContainerStyle={styles.scrollContainer}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={true}
+    >
+      <View style={styles.container}>
+        <View style={styles.headerContainer}>
+          <TouchableOpacity 
+            onPress={() => setShowInstructions(!showInstructions)}
+            style={styles.instructionsToggle}
+          >
+            <Text style={styles.headerTitle}>Salary Caps Based on DraftKings</Text>
+            <Text style={styles.toggleText}>
+              {showInstructions ? '▲ Show Less' : '▼ Show More'}
+            </Text>
+          </TouchableOpacity>
+          
+          {showInstructions && (
+            <Text style={styles.headerDescription}>
+              Choose players strategically while staying within your salary cap of {formatAbbreviated(SALARY_CAP)}. Each player has a unique cost, determined by their odds to win. Make sure to manage your selections wisely to maximize your roster strength without exceeding the cap.
+            </Text>
+          )}
+        </View>
 
-        </Text>
-      </View>
         <View style={styles.content}>
-
           <View style={{flexDirection: 'row', width: '100%', alignItems: 'center', justifyContent: 'space-evenly', marginBottom: scale(30)}}>
             <View style={{justifyContent: 'center', alignItems: 'center'}}>
               <Text style={{color: 'white', fontSize: scale(14), fontWeight: 'bold'}}>Remaining Salary</Text>
@@ -260,15 +275,16 @@ const SalaryCapPlayerPicks = ({ selectedPool, setSelectedPool }) => {
             </Text>
           </TouchableOpacity>
 
-          <TextInput
-            style={styles.searchBar}
-            placeholder="Search for a player"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-
           {currentlySelecting !== null && (
-            <ScrollView style={styles.playerScroll}>
+            <View style={styles.playerSelectionContainer}>
+              <TextInput
+                style={styles.searchBar}
+                placeholder="Search for a player"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus={false}
+              />
+
               <View style={styles.playerList}>
                 {filteredPlayers.map((player, index) => (
                   <View style={styles.playerCard} key={index}>
@@ -282,41 +298,59 @@ const SalaryCapPlayerPicks = ({ selectedPool, setSelectedPool }) => {
                   </View>
                 ))}
               </View>
-            </ScrollView>
+            </View>
           )}
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  scrollContainer: {
+    flexGrow: 1,
     backgroundColor: '#305115',
-    height: isIos ? undefined : 1,
     paddingVertical: 10,
     paddingHorizontal: 20,
   },
+  container: {
+    flex: 1,
+    backgroundColor: '#305115',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    paddingTop: 50,
+  },
   headerContainer: {
-    marginTop: scale(50),
+    marginTop: scale(25),
     padding: scale(10),
     backgroundColor: '#204010',
-    width: iosWidth
+    borderRadius: 5,
+    marginBottom: scale(10),
+  },
+  instructionsToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: scale(16),
     fontWeight: 'bold',
     color: '#FFD700',
-    marginBottom: scale(5),
+    flex: 1,
+  },
+  toggleText: {
+    fontSize: scale(12),
+    color: '#FFD700',
+    fontWeight: '500',
   },
   headerDescription: {
     fontSize: scale(12),
     color: '#FFFFFF',
+    marginTop: scale(10),
   },
   content: {
     alignSelf: 'center',
-    top: scale(10),
+    marginTop: scale(10),
     width: '100%',
   },
   title: {
@@ -383,6 +417,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 12,
   },
+  playerSelectionContainer: {
+    marginTop: 10,
+  },
   searchBar: {
     height: 35,
     borderColor: '#ccc',
@@ -399,6 +436,7 @@ const styles = StyleSheet.create({
   playerList: {
     flexDirection: 'column',
     alignItems: 'center',
+    paddingBottom: 20,
   },
   playerCard: {
     width: '90%',

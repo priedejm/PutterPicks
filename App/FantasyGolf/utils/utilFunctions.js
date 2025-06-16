@@ -1,16 +1,10 @@
-export const calculatePayouts = (tournament, players, amateurPlayers, payoutPercentages, specialPayout,) => {
+export const calculatePayouts = (tournament, players, amateurPlayers, payoutPercentages, specialPayouts) => {
   if (!tournament || !tournament.purse) return [];
   if (!Array.isArray(players) || players.length === 0) return [];
   if (!Array.isArray(amateurPlayers)) return [];
   if (!Array.isArray(payoutPercentages) || payoutPercentages.length === 0) return [];
-  if (!specialPayout) return [];
-  // console.log("tournament", tournament)
-  // console.log("players", players?.length)
-  // console.log("amateurPlayers", amateurPlayers)
-  // console.log("payoutPercentages", payoutPercentages)
-  // console.log("specialPayout", specialPayout)
-  
-  // Filter players who are not amateurs and have a valid position and score
+  if (!specialPayouts || typeof specialPayouts !== 'object') return [];
+
   const playersPaid = players.filter(
     (player) =>
       !amateurPlayers.includes(player.name) &&
@@ -19,7 +13,6 @@ export const calculatePayouts = (tournament, players, amateurPlayers, payoutPerc
       player.score !== '-'
   );
 
-  // Create a position to player mapping, and count how many players are tied at each position
   const positionCounts = {};
   playersPaid.forEach((player) => {
     let position = player.position.startsWith('T')
@@ -32,12 +25,10 @@ export const calculatePayouts = (tournament, players, amateurPlayers, payoutPerc
     positionCounts[position].players.push(player);
   });
 
-  // Sort positions in ascending order (lowest position number comes first)
   const sortedPositions = Object.keys(positionCounts)
     .map(Number)
     .sort((a, b) => a - b);
 
-  // Format number with commas, rounding to the nearest integer
   const formatPayout = (amount) => {
     const roundedAmount = Math.round(amount);
     return roundedAmount.toLocaleString('en-US');
@@ -62,8 +53,11 @@ export const calculatePayouts = (tournament, players, amateurPlayers, payoutPerc
     players.forEach((player) => {
       let payout;
 
-      if (specialPayout?.enabled && player.name === specialPayout.name) {
-        payout = specialPayout.payout;
+      if (
+        specialPayouts?.[player.name]?.enabled &&
+        specialPayouts?.[player.name]?.payout
+      ) {
+        payout = specialPayouts[player.name].payout;
       } else {
         payout = formatPayout(amountForPlayer);
       }

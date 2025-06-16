@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Platform, Modal } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Platform, Modal, KeyboardAvoidingView } from 'react-native';
 import { getDatabase, ref, get, onValue, update } from 'firebase/database';
 import { app } from '../config';
 import { useUser } from '../context/UserContext';
@@ -44,20 +44,21 @@ const PlayerPicks = () => {
   }, []);
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       {selectedPool.mode === "Season Long League" ? <SeasonLongPlayerPicks players={players} lockedPicks={lockedPicks}/> : 
        selectedPool.mode === "Majors Only" ? <MajorsOnlyPlayerPicks players={players} lockedPicks={lockedPicks}/> : null}
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
+    flex: 1,
     backgroundColor: '#305115',
-    height: isIos ? undefined : 1, // Ensures proper scrolling behavior on the web
-
   },
   logoutButton: {
     position: 'absolute',

@@ -13,9 +13,12 @@ const auth = getAuth(app);
 const LoginScreen = ({ navigation, setIsLoggedIn }) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState(''); // New for Firebase Auth
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { isLoggedIn, login } = useUser();
 
   useEffect(() => {
@@ -26,60 +29,112 @@ const LoginScreen = ({ navigation, setIsLoggedIn }) => {
     }
   }, [isLoggedIn, navigation]);
 
+  // Clear messages when switching between login/register
+  const clearMessages = () => {
+    setError('');
+    setSuccess('');
+  };
+
   // Handle Login
   const handleSubmit = async () => {
-    console.log("hello")
+    if (isLoading) return;
+    
+    clearMessages();
+    setIsLoading(true);
+
     try {
       const usernameRef = ref(database, `usernames/${username}`);
       const emailSnap = await get(usernameRef);
-      console.log("hello 2")
+      
       if (!emailSnap.exists()) {
         setError('Username not found');
         return;
       }
-      console.log("hello 3")
+      
       const email = emailSnap.val();
       const resp = await signInWithEmailAndPassword(auth, email, password);
-      console.log("user in here?", resp.user)
 
       await AsyncStorage.setItem('username', username);
-
       const userToSet = {username: username, email: email};
-      console.log("hello 4", userToSet)
-      await AsyncStorage.setItem('user',  JSON.stringify(userToSet));
+      await AsyncStorage.setItem('user', JSON.stringify(userToSet));
+      
+      login(username);
       setIsLoggedIn(true);
-      console.log("hello", username)
     } catch (error) {
       console.error('Login error:', error);
       setError('Invalid username or password');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Handle Registration
   const handleRegister = async () => {
-    if (!email || !password || !username) {
+    if (isLoading) return;
+    
+    clearMessages();
+
+    // Validation
+    if (!email || !password || !username || !confirmPassword) {
       setError('All fields are required');
       return;
     }
 
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
+      // Check if username already exists
+      const usernameRef = ref(database, `usernames/${username}`);
+      const usernameSnap = await get(usernameRef);
+      
+      if (usernameSnap.exists()) {
+        setError('Username already taken');
+        return;
+      }
+
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
 
       // Save the username to email mapping in Firebase Realtime Database
       await set(ref(database, `usernames/${username}`), email);
-      // Save user details to users/{uid} if needed
+      // Save user details to users/{uid}
       await set(ref(database, `users/${uid}`), {
         username,
         email,
-        password,
       });
 
       await AsyncStorage.setItem('username', username);
+      const userToSet = {username: username, email: email};
+      await AsyncStorage.setItem('user', JSON.stringify(userToSet));
+      
+      // Success! Log them in automatically
       login(username);
+      setIsLoggedIn(true);
+      setSuccess('Account created successfully! Welcome to PutterPicks!');
+      
     } catch (error) {
       console.error('Registration error:', error);
-      setError(error.message || 'Registration failed');
+      if (error.code === 'auth/email-already-in-use') {
+        setError('Email is already registered');
+      } else if (error.code === 'auth/weak-password') {
+        setError('Password is too weak');
+      } else if (error.code === 'auth/invalid-email') {
+        setError('Invalid email address');
+      } else {
+        setError(error.message || 'Registration failed');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -100,6 +155,7 @@ const LoginScreen = ({ navigation, setIsLoggedIn }) => {
             keyboardType="email-address"
             value={email}
             onChangeText={setEmail}
+            editable={!isLoading}
           />
         )}
 
@@ -108,31 +164,54 @@ const LoginScreen = ({ navigation, setIsLoggedIn }) => {
           placeholder="Username"
           value={username}
           onChangeText={setUsername}
+          editable={!isLoading}
         />
+        
         <TextInput
           style={styles.input}
           placeholder="Password"
           secureTextEntry
           value={password}
           onChangeText={setPassword}
+          editable={!isLoading}
         />
 
+        {isRegistering && (
+          <TextInput
+            style={styles.input}
+            placeholder="Confirm Password"
+            secureTextEntry
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            editable={!isLoading}
+          />
+        )}
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        {success ? <Text style={styles.success}>{success}</Text> : null}
 
         <TouchableOpacity
           onPress={isRegistering ? handleRegister : handleSubmit}
-          style={styles.button}
+          style={[styles.button, isLoading && styles.buttonDisabled]}
+          disabled={isLoading}
         >
           <Text style={styles.buttonText}>
-            {isRegistering ? 'Create Account' : 'Login'}
+            {isLoading 
+              ? (isRegistering ? 'Creating Account...' : 'Logging in...') 
+              : (isRegistering ? 'Create Account' : 'Login')
+            }
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => {
-          setIsRegistering(!isRegistering);
-          setError('');
-        }}>
-          <Text style={styles.toggleText}>
+        <TouchableOpacity 
+          onPress={() => {
+            setIsRegistering(!isRegistering);
+            clearMessages();
+            setConfirmPassword('');
+          }}
+          disabled={isLoading}
+        >
+          <Text style={[styles.toggleText, isLoading && styles.textDisabled]}>
             {isRegistering ? 'Already have an account? Login' : 'No account? Create one'}
           </Text>
         </TouchableOpacity>
@@ -196,6 +275,9 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 10,
   },
+  buttonDisabled: {
+    backgroundColor: '#cccccc',
+  },
   buttonText: {
     color: '#fff',
     fontSize: 18,
@@ -204,11 +286,22 @@ const styles = StyleSheet.create({
     color: 'red',
     textAlign: 'center',
     marginTop: 10,
+    marginBottom: 10,
+  },
+  success: {
+    color: 'green',
+    textAlign: 'center',
+    marginTop: 10,
+    marginBottom: 10,
+    fontWeight: 'bold',
   },
   toggleText: {
     marginTop: 15,
     color: '#007bff',
     textDecorationLine: 'underline',
+  },
+  textDisabled: {
+    color: '#cccccc',
   },
 });
 

@@ -5,17 +5,15 @@ import { scale } from 'react-native-size-matters';
 import { getDatabase, ref, push } from 'firebase/database';
 import { app } from '../config';
 
-export default function CreateScreen({user}) {
+export default function CreateScreen({ user, pools }) {
   const [step, setStep] = useState(1);
   const [poolName, setPoolName] = useState('');
   const [gameMode, setGameMode] = useState('season');
   const [focusedInput, setFocusedInput] = useState('');
 
-  // State for season settings
   const [golfersPicked, setGolfersPicked] = useState('1');
   const [playerUseLimit, setPlayerUseLimit] = useState('4');
 
-  // State for majors settings
   const [rosterFormat, setRosterFormat] = useState('tiered');
   const [selectedMajors, setSelectedMajors] = useState({
     BritishOpen: false,
@@ -37,24 +35,34 @@ export default function CreateScreen({user}) {
   };
 
   const formatPlayerUseLimit = (value) => {
-    if (value === 'unlimited') return 'Unlmited';
+    if (value === 'unlimited') return 'Unlimited';
     return value;
+  };
+
+  const generateShareCode = () => {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code;
+    do {
+      code = '';
+      for (let i = 0; i < 6; i++) {
+        code += characters.charAt(Math.floor(Math.random() * characters.length));
+      }
+    } while (pools?.some(p => p.shareCode === code));
+    return code;
   };
 
   const handleFinalSubmit = async () => {
     try {
-      console.log("submittedMajors are?", selectedMajors);
-      console.log("this the user", user);
       if (!user) {
         Alert.alert('Error', 'No user is signed in.');
         return;
       }
-  
+
       const currentYear = new Date().getFullYear();
-  
-      // Build tournaments with entries inside each one
+      const shareCode = generateShareCode();
+
       const tournaments = Object.entries(selectedMajors)
-        .filter(([major, isSelected]) => isSelected)
+        .filter(([_, isSelected]) => isSelected)
         .map(([major]) => ({
           name: major,
           purse: 20000000,
@@ -73,7 +81,7 @@ export default function CreateScreen({user}) {
             }
           ]
         }));
-  
+
       const userObject = {
         email: user.email,
         username: user.username || 'Anonymous',
@@ -88,29 +96,30 @@ export default function CreateScreen({user}) {
         seasonWinnings: 0,
         pickHistory: []
       };
-  
+
       const payload = {
         name: poolName,
         mode: gameMode === 'season' ? 'Season Long League' : 'Majors Only',
+        poolAdmin: [user.username],
         settings: gameMode === 'season'
           ? { golfersPicked, playerUseLimit }
           : { rosterFormat },
         tournaments: gameMode === 'season' ? [] : tournaments,
-        users: [userObject]
+        users: [userObject],
+        shareCode,
       };
-  
+
       const db = getDatabase(app);
       const poolsRef = ref(db, 'pools');
-  
+
       await push(poolsRef, payload);
-  
-      Alert.alert('Success', 'Pool created successfully!');
+
+      Alert.alert('Success', `Pool created! Share code: ${shareCode}`);
     } catch (error) {
       console.error('Error creating pool:', error);
       Alert.alert('Error', 'Something went wrong. Please try again.');
     }
   };
-  
   
   
 

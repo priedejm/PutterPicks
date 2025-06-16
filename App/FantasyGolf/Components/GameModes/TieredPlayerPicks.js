@@ -22,6 +22,7 @@ const TieredPlayerPicks = ({ selectedPool, setSelectedPool }) => {
   const [username, setUsername] = useState('');
   const [lockedPicks, setLockedPicks] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
 
   const settings = selectedPool?.settings || {};
   const amountOfTiers = settings.amountOfTiers || 1;
@@ -155,14 +156,29 @@ const TieredPlayerPicks = ({ selectedPool, setSelectedPool }) => {
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>Golf Tiers Based on DraftKings</Text>
-        <Text style={styles.headerDescription}>
-          Choose one golfer from each of the tiers, ranked from favorites to longshots based on betting odds.
-          You can edit your picks until the first tee time — after that, selections are locked and can’t be changed.
-        </Text>
+        <TouchableOpacity 
+          onPress={() => setShowInstructions(!showInstructions)}
+          style={styles.instructionsToggle}
+        >
+          <Text style={styles.headerTitle}>Golf Tiers Based on DraftKings</Text>
+          <Text style={styles.toggleText}>
+            {showInstructions ? '▲ Show Less' : '▼ Show More'}
+          </Text>
+        </TouchableOpacity>
+        
+        {showInstructions && (
+          <Text style={styles.headerDescription}>
+            Choose one golfer from each of the tiers, ranked from favorites to longshots based on betting odds.
+            You can edit your picks until the first tee time — after that, selections are locked and can't be changed.
+          </Text>
+        )}
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={true}
+      >
         {tiers.map((tierPlayers, tierIndex) => {
           const isCollapsed = collapsedTiers[tierIndex];
           const selectedName = selectedPlayers[tierIndex];
@@ -181,12 +197,9 @@ const TieredPlayerPicks = ({ selectedPool, setSelectedPool }) => {
                       Odds: {tierPlayers.find(p => p.name === selectedName)?.odds_to_win}
                     </Text>
                   </View>
-                  <View    style={[
-                          styles.selectButton,
-                          styles.selectedButton
-                        ]}>
-                  <Text style={styles.selectButtonText}>Change</Text>
-                      </View>
+                  <View style={[styles.selectButton, styles.selectedButton]}>
+                    <Text style={styles.selectButtonText}>Change</Text>
+                  </View>
                 </TouchableOpacity>
               ) : (
                 tierPlayers.map((player, idx) => {
@@ -224,9 +237,12 @@ const TieredPlayerPicks = ({ selectedPool, setSelectedPool }) => {
             </View>
           );
         })}
+        
+        {/* Add padding at bottom to ensure save button doesn't overlap content */}
+        <View style={{ height: scale(80) }} />
       </ScrollView>
 
-      <View style={{ width: '100%', backgroundColor: '#305115', height: scale(65) }}>
+      <View style={styles.saveButtonContainer}>
         <TouchableOpacity
           style={[styles.saveButton, isSaveDisabled && styles.saveButtonDisabled]}
           onPress={handleSave}
@@ -245,11 +261,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#305115',
-    paddingTop: scale(20),
+    paddingTop: scale(40),
   },
   scrollContainer: {
     paddingHorizontal: scale(10),
-    paddingBottom: scale(100),
+    paddingBottom: scale(20),
   },
   headerContainer: {
     marginTop: scale(25),
@@ -257,15 +273,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#204010',
     marginBottom: scale(10),
   },
+  instructionsToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   headerTitle: {
     fontSize: scale(16),
     fontWeight: 'bold',
     color: '#FFD700',
-    marginBottom: scale(5),
+    flex: 1,
+  },
+  toggleText: {
+    fontSize: scale(12),
+    color: '#FFD700',
+    fontWeight: '500',
   },
   headerDescription: {
     fontSize: scale(12),
     color: '#FFFFFF',
+    marginTop: scale(10),
   },
   tierSection: {
     marginBottom: scale(20),
@@ -292,6 +319,7 @@ const styles = StyleSheet.create({
   },
   playerInfo: {
     flexDirection: 'column',
+    flex: 1,
   },
   playerName: {
     fontSize: scale(14),
@@ -317,11 +345,13 @@ const styles = StyleSheet.create({
     fontSize: scale(12),
     fontWeight: 'bold',
   },
+  saveButtonContainer: {
+    backgroundColor: '#305115',
+    paddingHorizontal: scale(10),
+    paddingBottom: scale(10),
+    paddingTop: scale(5),
+  },
   saveButton: {
-    position: 'absolute',
-    bottom: scale(10),
-    left: scale(10),
-    right: scale(10),
     backgroundColor: '#ffdf00',
     padding: scale(12),
     borderRadius: 8,

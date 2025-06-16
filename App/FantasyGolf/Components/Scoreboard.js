@@ -143,13 +143,14 @@ const Scoreboard = () => {
     const specialPayoutRef = ref(database, 'featureflags/specialPayout');
     const unsubscribe = onValue(specialPayoutRef, (snapshot) => {
       if (snapshot.exists()) {
-        setSpecialPayout(snapshot.val());
+        const data = snapshot.val();
+        setSpecialPayout(data); // this should now be a map of players
       }
     });
   
-    // Cleanup on unmount
-    return () => unsubscribe(); // for consistency, even if onValue doesn’t need it
+    return () => unsubscribe();
   }, []);
+  
 
   useEffect(() => {
     const grabUsername = async () => {
@@ -292,7 +293,7 @@ const Scoreboard = () => {
   };
   
   // Call the function to log golfers' leaderboard and user picks
-  // logGolfersLeaderboardAndUsersPicks();
+  logGolfersLeaderboardAndUsersPicks();
   
   const countPlayerPicks = () => {
     // console.log("counting player picks")

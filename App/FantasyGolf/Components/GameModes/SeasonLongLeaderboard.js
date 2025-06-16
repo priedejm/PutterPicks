@@ -16,6 +16,7 @@ import PlayerCard from '../PlayerCard';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { useCallback } from 'react';
 import { calculatePayouts } from '../../utils/utilFunctions';
+import { syncPicksToTournament, resetUserPicks, updateUsersSeasonWinnings } from '../../utils/firebaseFunctions';
 
 
 
@@ -117,7 +118,12 @@ const SeasonLongLeaderboard = () => {
   
       return () => unsubscribe();
     }, [])
-  );  
+  );    
+  
+  // adds current entries to the latest tournament - have payouts if we want to add that
+  // useEffect(() => {
+  //   syncPicksToTournament(players, calculatePayouts, selectedPool.name, users);
+  // }, [players]);
 
   // Update seasonWinnings for each user
   // useEffect(() => {
@@ -130,11 +136,6 @@ const SeasonLongLeaderboard = () => {
   //   if(!users || !selectedPool) return;
   //   resetUserPicks(users, "Fantasy Golf");
   // }, [users]);
-
-  // adds current entries to the latest tournament - have payouts if we want to add that
-  // useEffect(() => {
-  //   syncPicksToTournament(players, calculatePayouts, selectedPool.name, users);
-  // }, [players]);
 
   // const fetchPlayers = async (fromRefresh) => {
   //   //console.log("fetching");

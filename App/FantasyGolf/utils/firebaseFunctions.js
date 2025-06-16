@@ -2,17 +2,17 @@ import { getDatabase, ref, get, update } from 'firebase/database';
 
 // Player earnings mapping
 const playerEarnings = {
-  Justin: 17857526,   // 15579269 + 2287257
-  Davis: 11926164,    // 9890764 + 2035400
-  Connor: 17395031,   // 14872231 + 2306800
-  Cameron: 16229417,  // 14914773 + 1315644
-  Griffin: 10022828,  // 5833456 + 4189372
-  Greg: 11664285,     // 10246999 + 1386286
-  Henry: 13543595,    // 12611021 + 1293574
-  Jack: 11869184,     // 10578740 + 1296444
-  Charlie: 11963675,  // 8973231 + 2990444
-  Wesley: 14513103,   // 9956215 + 4556888
-  Tom: 10005460       // 9147060 + 858400
+  Justin: 30285823,   // 28680365 + 1605458
+  Davis: 21667056,    // 18676640 + 2990416
+  Connor: 30212596,   // 29865175 + 347421
+  Cameron: 29461195,  // 28132215 + 1328880
+  Griffin: 18283567,  // 17393182 + 890385
+  Greg: 23746957,     // 23254779 + 492178
+  Henry: 22490952,    // 22134994 + 355958
+  Jack: 20622329,     // 20149860 + 472469
+  Charlie: 24672175,  // 24231719 + 440456
+  Wesley: 25708755,   // 24168086 + 1540669
+  Tom: 16632289       // 16159820 + 472469
 };
 
 // Update seasonWinnings for each user with the array above
@@ -28,15 +28,22 @@ export const updateUsersSeasonWinnings = async (users, poolName) => {
 
     if (!poolsObj) return;
 
-    // Convert pools from object to array while preserving keys
-    const poolEntries = Object.entries(poolsObj); // [ [key, pool], ... ]
-
-    // Find the entry with the matching name
+    const poolEntries = Object.entries(poolsObj);
     const [poolKey, pool] = poolEntries.find(
       ([_, pool]) => pool.name === poolName
     ) || [];
 
     if (!pool || !pool.users) return;
+
+    const latestTournament = pool.tournaments.length - 1;
+
+    pool.tournaments[latestTournament].weeklyEarnings = { ...playerEarnings };
+
+    // Update the latest tournament in the pool with new weekly earnings
+    const poolRef = ref(db, `pools/${poolKey}/tournaments/${latestTournament}`);
+    update(poolRef, { weeklyEarnings: playerEarnings }).catch((error) => {
+      console.error("Error updating latest tournament weekly earnings:", error);
+    });
 
     const poolUsers = pool.users;
 
@@ -58,6 +65,7 @@ export const updateUsersSeasonWinnings = async (users, poolName) => {
     console.error("Error updating users' season winnings:", error);
   }
 };
+
 
 
 
@@ -146,25 +154,25 @@ export const syncPicksToTournament = async (players, calculatePayouts, poolName,
     if (!pools || !users) return;
 
     // Find the matching pool by name
-    const poolIndex = pools.findIndex(pool => pool.name === poolName);
-    if (poolIndex === -1) {
+    // Convert pools object to array with keys
+    const poolEntries = Object.entries(pools);    
+
+    // Find index and key of the desired pool
+    const poolEntry = poolEntries.find(([key, pool]) => pool.name === poolName);
+    if (!poolEntry) {
       console.error(`Pool with name "${poolName}" not found.`);
       return;
-    }
+    }   
 
-    const selectedPool = pools[poolIndex];
+    const [poolKey, selectedPool] = poolEntry;
     const { tournaments } = selectedPool;
-
-    if (!tournaments || tournaments.length === 0) return;
+    if (!tournaments || tournaments.length === 0) return;   
 
     const latestIndex = tournaments.length - 1;
     const latestTournament = tournaments[latestIndex];
+    if (latestTournament.entries) return;   
 
-    // Skip if entries already exist
-    if (latestTournament.entries) return;
-
-    const payouts = calculatePayouts(); // Include if used elsewhere
-
+    // Construct entries
     const entries = users.map(user => ({
       username: user.username,
       pick1: user.pick1,
@@ -173,15 +181,16 @@ export const syncPicksToTournament = async (players, calculatePayouts, poolName,
       pick4: user.pick4,
       pick5: user.pick5,
       pick6: user.pick6,
-    }));
+    }));    
 
-    // Update the tournament with entries
-    pools[poolIndex].tournaments[latestIndex] = {
+    // Update the selected tournament
+    pools[poolKey].tournaments[latestIndex] = {
       ...latestTournament,
       entries,
-    };
+    };    
 
     await update(ref(db), { pools });
+
 
     // //console.log('User picks successfully synced to pool tournament');
   } catch (error) {

@@ -7,6 +7,8 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { scale } from 'react-native-size-matters';
@@ -87,49 +89,71 @@ const PoolSettings = () => {
       Alert.alert('Error', 'Please enter both title and body.');
       return;
     }
-
+  
     setSending(true);
-
+  
     try {
       const db = getDatabase();
       const snapshot = await get(ref(db, 'users'));
-
+  
       if (!snapshot.exists()) {
         Alert.alert('Error', 'No users found.');
         setSending(false);
         return;
       }
-
+  
       const users = snapshot.val();
       const poolUsernames = Object.values(pool.users || {}).map(u => u.username);
       const tokens = [];
-
+  
       Object.values(users).forEach(user => {
         if (user.username && poolUsernames.includes(user.username) && user.expoToken) {
           tokens.push(user.expoToken);
         }
       });
-
+  
       if (tokens.length === 0) {
         Alert.alert('Info', 'No users with Expo tokens found.');
         setSending(false);
         return;
       }
-      console.log("I bet its not just token", tokens)
-      await Promise.all(
+  
+      const results = await Promise.all(
         tokens.map(token =>
           axios.post('https://exp.host/--/api/v2/push/send', {
             to: token,
             title,
             body,
             sound: 'default',
-          })
+          }).then(res => ({ token, res: res.data }))
+            .catch(error => ({ token, error }))
         )
       );
-
-      Alert.alert('Success', `Notification sent to ${tokens.length} users.`);
-      setTitle('');
-      setBody('');
+  
+      const failed = results.filter(r =>
+        r.res?.data?.status === 'error' ||
+        r.error
+      );
+  
+      if (failed.length > 0) {
+        const messages = failed.map(f => {
+          if (f.error) {
+            return `Token: ${f.token}\nError: ${f.error.message}`;
+          } else {
+            const details = f.res?.data?.details?.error || 'Unknown error';
+            return `Token: ${f.token}\nError: ${f.res.data.message} (${details})`;
+          }
+        }).join('\n\n');
+  
+        Alert.alert(
+          'Some notifications failed',
+          messages.length > 400 ? messages.slice(0, 400) + '...' : messages
+        );
+      } else {
+        Alert.alert('Success', `Notification sent to ${tokens.length} users.`);
+        setTitle('');
+        setBody('');
+      }
     } catch (error) {
       console.error('Notification Error:', error);
       Alert.alert('Error', 'Failed to send notifications.');
@@ -137,10 +161,18 @@ const PoolSettings = () => {
       setSending(false);
     }
   };
+  
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#305115' }}>
-      <ScrollView contentContainerStyle={styles.container}>
+    <KeyboardAvoidingView 
+      style={{ flex: 1, backgroundColor: '#305115' }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView 
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={true}
+      >
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
@@ -220,37 +252,46 @@ const PoolSettings = () => {
         {pool?.settings && <View style={styles.divider} />}
 
         <Text style={styles.subtitle}>Send Notification to Pool Users</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Title"
-          value={title}
-          onChangeText={setTitle}
-        />
-        <TextInput
-          style={[styles.input, { height: scale(100) }]}
-          placeholder="Body"
-          value={body}
-          multiline
-          onChangeText={setBody}
-        />
-        <TouchableOpacity
-          style={[styles.button, !(title && body) && { opacity: 0.5 }]}
-          onPress={sendNotification}
-          disabled={sending || !title || !body}
-        >
-          <Text style={styles.buttonText}>{sending ? 'Sending...' : 'Send Notification'}</Text>
-        </TouchableOpacity>
+        
+        <View style={styles.notificationSection}>
+          <TextInput
+            style={styles.input}
+            placeholder="Title"
+            placeholderTextColor="#999"
+            value={title}
+            onChangeText={setTitle}
+            returnKeyType="next"
+          />
+          <TextInput
+            style={[styles.input, styles.bodyInput]}
+            placeholder="Body"
+            placeholderTextColor="#999"
+            value={body}
+            multiline
+            onChangeText={setBody}
+            returnKeyType="done"
+            textAlignVertical="top"
+          />
+          <TouchableOpacity
+            style={[styles.button, !(title && body) && { opacity: 0.5 }]}
+            onPress={sendNotification}
+            disabled={sending || !title || !body}
+          >
+            <Text style={styles.buttonText}>{sending ? 'Sending...' : 'Send Notification'}</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: '#305115',
     padding: scale(20),
-    marginTop: scale(15),
+    paddingTop: scale(35),
+    paddingBottom: scale(40),
   },
   backButton: {
     marginTop: scale(20),
@@ -299,17 +340,25 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: scale(18),
     fontWeight: 'bold',
-    marginBottom: scale(10),
+    marginBottom: scale(15),
     color: 'white',
+  },
+  notificationSection: {
+    marginBottom: scale(20),
   },
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: scale(8),
-    padding: scale(10),
+    padding: scale(12),
     fontSize: scale(14),
     marginBottom: scale(15),
     backgroundColor: 'white',
+    color: 'black',
+  },
+  bodyInput: {
+    height: scale(100),
+    paddingTop: scale(12),
   },
   button: {
     backgroundColor: '#ffdf00',

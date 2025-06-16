@@ -12,6 +12,13 @@ import PlayerPicks from './Components/PlayerPicks';
 import SeasonLongLeaderboard from './Components/GameModes/SeasonLongLeaderboard';
 import { UserProvider } from './context/UserContext';
 import Dashboard from './Components/Dashboard';
+import PoolSettings from './Components/PoolSettings';
+import PoolDetails from './Components/PoolDetails';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import { Alert } from 'react-native';
+
+
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -68,7 +75,33 @@ export default function App() {
     LogBox.ignoreLogs([
       'Warning: Text strings must be rendered within a <Text> component',
     ]);
+  
+    // Foreground handler
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+  
+    // Listener for received notifications while app is foregrounded
+    const notificationListener = Notifications.addNotificationReceivedListener(notification => {
+      const { title, body } = notification.request.content;
+      // Alert.alert(title || 'Notification', body || 'You have a new message');
+    });
+  
+    // Listener for when user taps the notification
+    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+      console.log('Notification tapped:', response);
+    });
+  
+    return () => {
+      Notifications.removeNotificationSubscription(notificationListener);
+      Notifications.removeNotificationSubscription(responseListener);
+    };
   }, []);
+  
 
   return (
     <UserProvider>
@@ -81,6 +114,8 @@ export default function App() {
           <Stack.Screen name="Main" component={BottomTabs} />
           
           <Stack.Screen name="SeasonLongLeaderboard" component={SeasonLongLeaderboard} />
+          <Stack.Screen name="PoolSettings" component={PoolSettings} />
+          <Stack.Screen name="PoolDetails" component={PoolDetails} />
         </Stack.Navigator>
       </NavigationContainer>
     </UserProvider>

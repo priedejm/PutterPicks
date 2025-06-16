@@ -7,6 +7,7 @@ import {
 import { useUser } from '../context/UserContext'; // Import the UserContext
 import SeasonLongLeaderboard from './GameModes/SeasonLongLeaderboard';
 import MajorsOnlyLeaderboard from './GameModes/MajorsOnlyLeaderboard';
+import { updateUsersSeasonWinnings, resetUserPicks, syncPicksToTournament } from '../utils/firebaseFunctions';
 
 const Leaderboard = () => {
   const { selectedPool } = useUser();

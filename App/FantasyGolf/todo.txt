@@ -5,7 +5,10 @@ Meeting Call with chuck and juck. Plus justin
 
  - grey out picks when picks are locked
  - percent picked in leaderboard player 
+ - add support for season long single fantasy team - like pick players once like how it says in the Golfers Picked description
 
+- **Priority**
+- add custom tier numbers and settings for majors only
 
  git clone
  cd App
@@ -13,3 +16,15 @@ Meeting Call with chuck and juck. Plus justin
  yarn install
  npm start 
  0
+
+
+
+
+ Tournament field defintiions
+ - entries -> not used for anything, just to keep track of peoples entreies for each tournament. Gets added with syncPicksToTournaments
+ - weeklyEarnings -> used for seasonLongChart
+
+
+ game mode testing
+ - when creating tiered mode, no where to select how many tieres
+ 
